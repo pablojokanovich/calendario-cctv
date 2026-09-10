@@ -103,7 +103,11 @@ function parseDate(value: string) { return new Date(`${value}T12:00:00`); }
 function formatShort(value: string) { return value ? parseDate(value).toLocaleDateString("es-AR") : ""; }
 function monthLabel(date: Date) { return date.toLocaleDateString("es-AR", { month: "long", year: "numeric" }); }
 function darkColor(hex: string) {
-  return (parseInt(hex.slice(1, 3), 16) * 299 + parseInt(hex.slice(3, 5), 16) * 587 + parseInt(hex.slice(5, 7), 16) * 114) / 1000 < 145;
+  const [r, g, b] = [1, 3, 5].map(offset => {
+    const channel = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return r * 0.2126 + g * 0.7152 + b * 0.0722 < 0.179;
 }
 function phaseFor(event: EventDraft, day: string) {
   const setup = event.setupDate === day;
@@ -424,7 +428,7 @@ export default function AgendaApp() {
             <table>
               <colgroup>{[100, 175, 140, 145, 145, 145, 165, 195, 220, 250, 220, 220, 155, 140, 150, 110].map((width, i) => <col key={i} style={{ width }} />)}</colgroup>
               <thead><tr>{["Orden", "Evento", "Lugar", "Armado", "Inicio", "Fin", "Sala", "Servicio CCTV", "Director", "Camarógrafos", "Volante", "vMix", "Tipo de vMix", "Estado", "Día", "Acciones"].map((head, i) => <th key={head} scope="col" className={i < 2 ? `pinned pinned-${i}` : ""}>{head}{i >= 8 && i <= 11 && <small>Nombre / Confirmado</small>}</th>)}</tr></thead>
-              <tbody>{rows.map(({ event, assignment }) => <tr key={`${event.id}-${assignment.id}`} className={editing?.id === event.id && editing.mode === "sheet" ? "editing-row" : ""} style={{ "--event-color": event.color } as CSSProperties}>
+              <tbody>{rows.map(({ event, assignment }) => <tr key={`${event.id}-${assignment.id}`} className={editing?.id === event.id && editing.mode === "sheet" ? "editing-row" : ""} style={{ "--event-color": event.color, "--event-ink": darkColor(event.color) ? "#fff" : "#000", colorScheme: darkColor(event.color) ? "dark" : "light" } as CSSProperties}>
                 <td className="pinned pinned-0 order-cell">{sheetField(event, "orderNumber", "Orden")}<input type="color" className="event-color" aria-label={`Color · ${event.orderNumber}`} value={event.color} onChange={e => changeSheet(event, data => ({ ...data, color: e.target.value }))} /></td>
                 <td className="pinned pinned-1">{sheetField(event, "eventName", "Evento")}</td>
                 <td>{sheetField(event, "location", "Lugar")}</td>
