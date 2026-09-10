@@ -1,0 +1,384 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f6f8;
+  --foreground: #14171f;
+  --ink-soft: #5c6372;
+  --line: #cdd4df;
+  --panel: #ffffff;
+  --panel-strong: #101828;
+  --accent: #0077c8;
+  --accent-dark: #005a9a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 18px;
+}
+
+.toolbar {
+  align-items: center;
+  background: var(--panel-strong);
+  color: white;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 16px 18px;
+}
+
+.toolbar h1 {
+  font-size: 28px;
+  line-height: 1;
+  margin: 4px 0 8px;
+}
+
+.eyebrow {
+  color: #90cdf4;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.status-pill {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  color: #eaf4ff;
+  display: inline-flex;
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.toolbar-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.toolbar-actions > button,
+.editor button,
+.row-actions button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-height: 34px;
+  padding: 7px 11px;
+}
+
+.toolbar-actions strong {
+  min-width: 190px;
+  text-align: center;
+}
+
+.segmented {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  display: inline-flex;
+  padding: 3px;
+}
+
+.segmented button {
+  background: transparent;
+  border: 0;
+  color: white;
+  min-height: 30px;
+  padding: 6px 10px;
+}
+
+.segmented .active {
+  background: white;
+  color: var(--panel-strong);
+}
+
+.primary {
+  background: var(--accent);
+  border-color: var(--accent-dark) !important;
+  color: white;
+  font-weight: 700;
+}
+
+.workspace {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(310px, 370px) minmax(0, 1fr);
+  margin-top: 16px;
+}
+
+.editor,
+.calendar-panel,
+.sheet-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.editor {
+  align-self: start;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.editor-head,
+.assignments-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.editor h2,
+.editor h3 {
+  margin: 0;
+}
+
+.editor h2 {
+  font-size: 20px;
+}
+
+.editor h3 {
+  font-size: 15px;
+}
+
+.editor label {
+  color: var(--ink-soft);
+  display: grid;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 5px;
+  text-transform: uppercase;
+}
+
+.editor input,
+.editor select {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--foreground);
+  min-height: 34px;
+  padding: 7px 9px;
+  text-transform: none;
+  width: 100%;
+}
+
+.form-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.swatches {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(10, 1fr);
+}
+
+.swatches button {
+  aspect-ratio: 1;
+  border: 2px solid transparent;
+  border-radius: 5px;
+}
+
+.swatches .selected {
+  border-color: #111827;
+  box-shadow: 0 0 0 2px white inset;
+}
+
+.assignment-editor {
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+}
+
+.check-line {
+  align-items: center;
+  display: flex !important;
+  flex-direction: row;
+  gap: 8px !important;
+}
+
+.check-line input {
+  min-height: auto;
+  width: auto;
+}
+
+.save {
+  min-height: 42px !important;
+}
+
+.calendar-panel {
+  overflow: hidden;
+}
+
+.weekday-row,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(118px, 1fr));
+}
+
+.weekday-row {
+  background: #10135a;
+  border-bottom: 2px solid #00a4d8;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.weekday-row span {
+  border-right: 1px solid #00a4d8;
+  padding: 8px 4px;
+}
+
+.day-cell {
+  background: white;
+  border-bottom: 1px solid #1f2937;
+  border-right: 1px solid #1f2937;
+  min-height: 122px;
+  padding: 4px;
+}
+
+.day-cell b {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 4px;
+  text-align: right;
+}
+
+.day-cell.muted {
+  background: #d5d5d5;
+}
+
+.event-chip {
+  border: 0;
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  min-height: 58px;
+  overflow-wrap: anywhere;
+  padding: 4px;
+  text-align: left;
+  white-space: pre-line;
+  width: 100%;
+}
+
+.sheet-panel {
+  overflow: auto;
+}
+
+table {
+  border-collapse: collapse;
+  min-width: 1180px;
+  width: 100%;
+}
+
+th,
+td {
+  border: 1px solid #111827;
+  font-size: 12px;
+  padding: 7px 8px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+th {
+  background: #ff9800;
+  color: black;
+  font-weight: 800;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+td input[type="checkbox"] {
+  height: 16px;
+  width: 16px;
+}
+
+.row-actions {
+  background: rgba(255, 255, 255, 0.35);
+  min-width: 128px;
+}
+
+.row-actions button {
+  background: white;
+  color: #111827;
+  margin: 2px;
+  min-height: 28px;
+  padding: 4px 8px;
+}
+
+@media (max-width: 980px) {
+  .toolbar,
+  .workspace {
+    display: block;
+  }
+
+  .toolbar-actions {
+    justify-content: flex-start;
+    margin-top: 14px;
+  }
+
+  .editor {
+    margin-bottom: 16px;
+  }
+
+  .calendar-panel {
+    overflow-x: auto;
+  }
+
+  .calendar-grid,
+  .weekday-row {
+    min-width: 860px;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    padding: 10px;
+  }
+
+  .toolbar h1 {
+    font-size: 23px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .swatches {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
