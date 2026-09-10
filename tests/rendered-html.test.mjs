@@ -1,91 +1,115 @@
 import assert from "node:assert/strict";
-import { access, readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
+import ts from "typescript";
+import React from "react";
+import { act, create } from "react-test-renderer";
+import { newDraft, normalizeEvent } from "../lib/agenda.ts";
 
-const developmentPreviewMeta =
-  /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
-const templateRoot = new URL("../", import.meta.url);
-const previewRoot = new URL("../app/_sites-preview/", import.meta.url);
-
-async function render() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-
-  return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
+// Exercise React reconciliation without launching or inspecting a browser.
+async function loadApp() {
+  const source = await readFile(new URL("../app/AgendaApp.tsx", import.meta.url), "utf8");
+  const output = ts.transpileModule(source, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX },
+    transformers: { after: [context => root => ts.visitNode(root, function visit(node) {
+      if (ts.isImportDeclaration(node)) {
+        const specifier = node.moduleSpecifier.text;
+        const resolved = import.meta.resolve(specifier === "../lib/agenda" ? "../lib/agenda.ts" : specifier);
+        return ts.factory.updateImportDeclaration(node, node.modifiers, node.importClause, ts.factory.createStringLiteral(resolved), node.attributes);
+      }
+      return ts.visitEachChild(node, visit, context);
+    })] },
+  }).outputText;
+  return (await import("data:text/javascript;base64," + Buffer.from(output).toString("base64"))).default;
 }
 
-test("server-renders the starter loading skeleton", async () => {
-  const response = await render();
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
+test("room typing, inline edits, per-person confirmations, theme persistence and failed saves", async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const storage = new Map();
+  globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
+  globalThis.document = { documentElement: { dataset: {} } };
+  globalThis.window = {
+    location: { hostname: "agenda.example" }, localStorage: globalThis.localStorage,
+    matchMedia: () => ({ matches: false }), addEventListener() {}, removeEventListener() {}, confirm: () => true,
+  };
+  const fixture = normalizeEvent({ ...newDraft(), id: 7, orderNumber: "0999", eventName: "Congreso", location: "CEC", startDate: "2026-09-20", endDate: "2026-09-21" });
+  fixture.assignments[0].salon = "Sala inicial";
+  fixture.assignments[0].crew.cameras = [{ id: "cam-a", name: "Lucas", confirmed: false }, { id: "cam-b", name: "Esteban", confirmed: false }];
+  fixture.assignments[0].crew.director = [{ id: "dir-a", name: "Maca", confirmed: false }];
+  fixture.assignments[0].crew.vmix = [{ id: "vmix-a", name: "Pablo", confirmed: false }];
+  let saved = fixture;
+  let failSave = false;
+  const requests = [];
+  globalThis.fetch = async (url, init) => {
+    if (!init?.method) return Response.json({ events: [saved] });
+    requests.push({ url, ...init });
+    if (failSave) return Response.json({ error: "No se pudo guardar online." }, { status: 500 });
+    saved = normalizeEvent({ ...JSON.parse(init.body), id: 7 });
+    return Response.json({ event: saved });
+  };
+  const App = await loadApp();
+  let renderer;
+  await act(async () => { renderer = create(React.createElement(App)); });
+  const root = () => renderer.root;
+  const button = label => root().findAllByType("button").find(b => b.props["aria-label"] === label || b.children.includes(label));
+  const input = label => root().findAllByType("input").find(i => i.props["aria-label"] === label);
+  async function click(label) {
+    const found = button(label);
+    assert.ok(found, "Missing button: " + label);
+    await act(async () => found.props.onClick());
+  }
+  try {
+    await click("Nuevo evento");
+    let sala = root().findByProps({ placeholder: "Nombre de sala (opcional)" });
+    const original = sala;
+    for (const char of "Libertador ABC") {
+      await act(async () => sala.props.onChange({ target: { value: sala.props.value + char } }));
+      sala = root().findByProps({ placeholder: "Nombre de sala (opcional)" });
+      assert.equal(sala, original, "Room field was remounted while typing");
+    }
+    assert.equal(sala.props.value, "Libertador ABC");
+    await click("Cancelar");
+    await click("Planilla");
+    const sheetSala = input("Sala · 0999");
+    await act(async () => sheetSala.props.onFocus());
+    for (const char of " completa") {
+      await act(async () => input("Sala · 0999").props.onChange({ target: { value: input("Sala · 0999").props.value + char } }));
+      assert.equal(input("Sala · 0999"), sheetSala, "Inline room field was remounted");
+    }
+    for (const label of ["Confirmar Camarógrafos 1: Lucas", "Confirmar Director 1: Maca", "Confirmar vMix 1: Pablo"]) {
+      await act(async () => input(label).props.onChange({ target: { checked: true } }));
+    }
+    assert.equal(input("Confirmar Camarógrafos 2: Esteban").props.checked, false);
+    await click("Guardar cambios");
+    assert.equal(requests.at(-1).method, "PUT");
+    assert.equal(requests.at(-1).url, "/api/events/7");
+    assert.equal(saved.assignments[0].salon, "Sala inicial completa");
+    assert.deepEqual(saved.assignments[0].crew.cameras.map(p => p.confirmed), [true, false]);
+    assert.equal(saved.assignments[0].crew.director[0].confirmed, true);
+    assert.equal(saved.assignments[0].crew.vmix[0].confirmed, true);
+    assert.equal(button("Guardar cambios"), undefined);
 
-  const html = await response.text();
-  assert.match(html, developmentPreviewMeta);
-  assert.match(html, /<title>Your site is taking shape<\/title>/i);
-  assert.match(html, /Building your site/);
-  assert.match(html, /Your site is taking shape/);
-  assert.match(
-    html,
-    /Your first version will appear here automatically when it’s ready\./,
-  );
-  assert.doesNotMatch(html, /Codex/);
-  assert.match(html, /react-loading-skeleton/);
-  assert.match(html, /role="status"/);
-});
-
-test("keeps the loading skeleton scoped and disposable", async () => {
-  const [preview, css, page, layout, packageJson, files] = await Promise.all([
-    readFile(new URL("SkeletonPreview.tsx", previewRoot), "utf8"),
-    readFile(new URL("preview.css", previewRoot), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readdir(previewRoot),
-  ]);
-
-  assert.deepEqual(files.sort(), ["SkeletonPreview.tsx", "preview.css"]);
-  assert.match(preview, /from "react-loading-skeleton"/);
-  assert.match(preview, /baseColor="#eceae7"/);
-  assert.match(preview, /highlightColor="#f9f8f6"/);
-  assert.match(preview, /duration=\{2\.8\}/);
-  assert.match(preview, /sites-skeleton-search-placeholder/);
-  assert.match(packageJson, /"react-loading-skeleton": "3\.5\.0"/);
-
-  const shellIndex = preview.indexOf('className="sites-skeleton-shell"');
-  const statusIndex = preview.indexOf('className="sites-skeleton-status"');
-  assert.ok(shellIndex >= 0 && statusIndex > shellIndex);
-  assert.match(css, /position:\s*fixed/);
-  assert.match(css, /inset:\s*0/);
-  assert.match(css, /opacity:\s*0\.52/);
-  assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.doesNotMatch(css, /#020617|canvas|pets|progress/i);
-  assert.doesNotMatch(
-    preview,
-    /loading-spinner|status-mark|status-progress|canvas|cookie|random/i,
-  );
-
-  assert.match(page, /export const metadata:\s*Metadata/);
-  assert.match(page, /"codex-preview": "development"/);
-  assert.match(page, /<SkeletonPreview \/>/);
-  assert.match(layout, /title:\s*"Starter Project"/);
-  assert.doesNotMatch(layout, /codex-preview|_sites-preview|themeColor|\bViewport\b/);
-  assert.doesNotMatch(css, /(^|\s)(html|body)\s*\{/m);
-
-  await assert.rejects(
-    access(new URL("public/_sites-preview", templateRoot)),
-  );
+    await act(async () => input("Camarógrafos 1").props.onChange({ target: { value: "Rodri" } }));
+    assert.equal(input("Confirmar Camarógrafos 1: Rodri").props.checked, false);
+    failSave = true;
+    await click("Guardar cambios");
+    assert.equal(root().findByProps({ role: "alert" }).children[0], "No se pudo guardar online.");
+    assert.equal(input("Camarógrafos 1").props.value, "Rodri");
+    assert.ok(button("Guardar cambios"), "Failed save must keep editable draft");
+    assert.equal(storage.has("congress-cctv-agenda-events"), false, "Online save errors must not claim local persistence");
+    failSave = false;
+    await click("Guardar cambios");
+    await click("Activar modo oscuro");
+    assert.equal(document.documentElement.dataset.theme, "dark");
+    assert.equal(storage.get("congress-cctv-theme"), "dark");
+    await act(async () => { renderer.unmount(); });
+    await act(async () => { renderer = create(React.createElement(App)); });
+    assert.equal(document.documentElement.dataset.theme, "dark");
+    await click("Planilla");
+    assert.equal(input("Sala · 0999").props.value, "Sala inicial completa");
+    assert.equal(input("Camarógrafos 1").props.value, "Rodri");
+    assert.equal(input("Confirmar Camarógrafos 2: Esteban").props.checked, false);
+  } finally {
+    await act(async () => renderer.unmount());
+  }
 });
