@@ -129,7 +129,15 @@ async function request(path: string, options?: RequestInit) {
   if (!response.ok || !data) throw new Error(data?.error || "No se pudo conectar con la agenda. Intentá nuevamente.");
   return data;
 }
-function csvEscape(value: unknown) { return `"${String(value ?? "").replaceAll('"', '""')}"`; }
+function htmlEscape(value: unknown) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
+}
+function excelTextCell(value: unknown, style = "Cell") {
+  return `<Cell ss:StyleID="${style}"><Data ss:Type="String">${htmlEscape(value)}</Data></Cell>`;
+}
+function excelStyleId(color: string) {
+  return `Event${color.replace("#", "").toUpperCase()}`;
+}
 
 export default function AgendaApp() {
   const [events, setEvents] = useState<EventRecord[]>([]);
@@ -326,18 +334,45 @@ export default function AgendaApp() {
     finally { savingRef.current = false; setSaving(false); }
   }
 
-  function exportCsv() {
+  function exportExcel() {
     const header = ["Nro de Orden", "Evento", "Lugar", "Armado", "Inicio", "Fin", "Sala", "Tipo de Servicio CCTV", "Director", "Director confirmado", "Camarógrafos", "Camarógrafos confirmados", "Volante", "Volante confirmado", "vMix", "vMix confirmado", "Tipo de vMix", "Estado"];
-    const body = events.flatMap(event => event.assignments.map(a => [
+    const sheetRows = events.flatMap(event => event.assignments.map(a => [
       event.orderNumber, event.eventName, event.location, formatShort(event.setupDate), formatShort(event.startDate), formatShort(event.endDate), a.salon, a.serviceType,
       ...roles.flatMap(role => [a.crew[role].map(p => p.name).join("; "), a.crew[role].filter(p => p.name.trim()).map(p => `${p.name}: ${p.confirmed ? "SI" : "NO"}`).join("; ")]),
       a.vmixType, a.status,
     ]));
-    const csv = "\uFEFF" + [header, ...body].map(row => row.map(csvEscape).join(";")).join("\r\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const usedColors = new Set(events.map(event => event.color));
+    const colorStyles = Array.from(usedColors).map(color => `<Style ss:ID="${excelStyleId(color)}"><Font ss:FontName="Arial" ss:Size="10" ss:Color="${darkColor(color) ? "#FFFFFF" : "#000000"}"/><Interior ss:Color="${color}" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>`).join("");
+    const planilla = `<Worksheet ss:Name="Planilla"><Table>${header.map((_, index) => `<Column ss:Width="${index >= 8 && index <= 11 ? 145 : 95}"/>`).join("")}<Row>${header.map(item => excelTextCell(item, "Header")).join("")}</Row>${sheetRows.map(row => {
+      const event = events.find(item => item.orderNumber === row[0]);
+      const style = event ? excelStyleId(event.color) : "Cell";
+      return `<Row>${row.map(value => excelTextCell(value, style)).join("")}</Row>`;
+    }).join("")}</Table></Worksheet>`;
+    const weeks = Array.from({ length: Math.ceil(monthDays.length / 7) }, (_, index) => monthDays.slice(index * 7, index * 7 + 7));
+    const calendario = `<Worksheet ss:Name="Calendario"><Table>${weekdays.map(() => `<Column ss:Width="155"/>`).join("")}<Row>${weekdays.map(day => excelTextCell(day, "Header")).join("")}</Row>${weeks.map(week => `<Row ss:Height="95">${week.map(day => {
+      const dayEvents = events.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate));
+      const entries = dayEvents.map(event => `${event.orderNumber} - ${event.eventName}\n${event.location}\n${event.assignments.map(a => [a.salon, a.serviceType].filter(Boolean).join(" - ")).join("\n")}\n${phaseFor(event, day.iso)}`).join("\n\n");
+      const style = dayEvents[0] ? excelStyleId(dayEvents[0].color) : !day.inMonth ? "MutedDay" : day.date.getDay() === 0 || day.date.getDay() === 6 ? "WeekendDay" : "CalendarDay";
+      return excelTextCell(`${day.date.getDate()}${entries ? `\n${entries}` : ""}`, style);
+    }).join("")}</Row>`).join("")}</Table></Worksheet>`;
+    const workbook = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+<Style ss:ID="Cell"><Font ss:FontName="Arial" ss:Size="10"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+<Style ss:ID="Header"><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1" ss:Color="#000000"/><Interior ss:Color="#FF9700" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>
+<Style ss:ID="CalendarDay"><Font ss:FontName="Arial" ss:Size="10"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+<Style ss:ID="WeekendDay"><Font ss:FontName="Arial" ss:Size="10"/><Interior ss:Color="#EEF3F7" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+<Style ss:ID="MutedDay"><Font ss:FontName="Arial" ss:Size="10" ss:Color="#666666"/><Interior ss:Color="#E5E5E5" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+${colorStyles}
+</Styles>
+${planilla}
+${calendario}
+</Workbook>`;
+    const url = URL.createObjectURL(new Blob([workbook], { type: "application/vnd.ms-excel;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `agenda-cctv-${dateIso(month).slice(0, 7)}.csv`;
+    link.download = `agenda-cctv-${dateIso(month).slice(0, 7)}.xls`;
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -364,7 +399,7 @@ export default function AgendaApp() {
           <button type="button" aria-pressed={view === "sheet"} className={view === "sheet" ? "active" : ""} onClick={() => changeView("sheet")}><Table2 size={17} />Planilla</button>
         </div>
         <IconButton label={theme === "light" ? "Activar modo oscuro" : "Activar modo claro"} onClick={toggleTheme}>{theme === "light" ? <Moon size={19} /> : <Sun size={19} />}</IconButton>
-        <IconButton label="Exportar CSV" onClick={exportCsv} disabled={loading}><Download size={19} /></IconButton>
+        <IconButton label="Exportar Excel con planilla y calendario" onClick={exportExcel} disabled={loading}><Download size={19} /></IconButton>
         <button type="button" className="primary" disabled={loading || saving} onClick={() => beginEdit(null, "form")}><Plus size={18} />Nuevo evento</button>
       </div>
     </header>
