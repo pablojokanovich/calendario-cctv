@@ -72,6 +72,7 @@ const sampleEvents = [
 const localStorageKey = "congress-cctv-agenda-events";
 const themeKey = "congress-cctv-theme";
 const operatorOptions = ["Lean", "Pablo", "Giuli", "Rodri", "Cami", "Lucas", "Esteban", "Maca", "Paola", "Jero", "Carla"];
+const sheetColumnWidths = [92, 158, 125, 112, 112, 112, 145, 178, 205, 235, 185, 190, 138, 128, 112, 170];
 type Editing = { id: number | null; data: EventDraft; mode: "form" | "sheet"; dirty: boolean };
 
 function IconButton({ label, children, ...props }: { label: string; children: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -393,7 +394,7 @@ export default function AgendaApp() {
           <label>Día en calendario<select value={draft.phase} onChange={e => changeDraft({ phase: e.target.value as EventDraft["phase"] })}>{phases.map(p => <option key={p}>{p}</option>)}</select></label>
           <div className="color-field"><span>Color del evento</span><div className="swatches">{colors.map(color => <button type="button" key={color} title={`Color ${color}`} aria-label={`Color ${color}`} aria-pressed={draft.color === color} style={{ background: color, color: darkColor(color) ? "#fff" : "#111" }} onClick={() => changeDraft({ color })}>{draft.color === color && <Check size={16} />}</button>)}</div></div>
         </div>
-        <div className="assignments-head"><h3>Salas y operadores</h3><button type="button" onClick={() => changeDraft({ assignments: [...draft.assignments, newAssignment()] })}><Plus size={16} />Sala</button></div>
+        <div className="assignments-head"><h3>Salas y operadores</h3><button type="button" onClick={() => changeDraft({ assignments: [...draft.assignments, newAssignment()] })}><Plus size={16} />Agregar sala</button></div>
         {draft.assignments.map((assignment, index) => <div className="assignment-editor" key={assignment.id}>
           <div className="room-fields">
             <label>Sala {index + 1}<input placeholder="Nombre de sala (opcional)" value={assignment.salon} onChange={e => changeAssignment(assignment.id, { salon: e.target.value })} /></label>
@@ -426,7 +427,7 @@ export default function AgendaApp() {
         <fieldset disabled={saving}>
           <div className="sheet-scroll" tabIndex={0} role="region" aria-label="Planilla editable con desplazamiento horizontal">
             <table>
-              <colgroup>{[100, 175, 140, 145, 145, 145, 165, 195, 220, 250, 220, 220, 155, 140, 150, 110].map((width, i) => <col key={i} style={{ width }} />)}</colgroup>
+              <colgroup>{sheetColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}</colgroup>
               <thead><tr>{["Orden", "Evento", "Lugar", "Armado", "Inicio", "Fin", "Sala", "Servicio CCTV", "Director", "Camarógrafos", "Volante", "vMix", "Tipo de vMix", "Estado", "Día", "Acciones"].map((head, i) => <th key={head} scope="col" className={i < 2 ? `pinned pinned-${i}` : ""}>{head}{i >= 8 && i <= 11 && <small>Nombre / Confirmado</small>}</th>)}</tr></thead>
               <tbody>{rows.map(({ event, assignment }) => <tr key={`${event.id}-${assignment.id}`} className={editing?.id === event.id && editing.mode === "sheet" ? "editing-row" : ""} style={{ "--event-color": event.color, "--event-ink": darkColor(event.color) ? "#fff" : "#000", colorScheme: darkColor(event.color) ? "dark" : "light" } as CSSProperties}>
                 <td className="pinned pinned-0 order-cell">{sheetField(event, "orderNumber", "Orden")}<input type="color" className="event-color" aria-label={`Color · ${event.orderNumber}`} value={event.color} onChange={e => changeSheet(event, data => ({ ...data, color: e.target.value }))} /></td>
@@ -443,7 +444,7 @@ export default function AgendaApp() {
                 <td><select aria-label={`Día · ${event.orderNumber}`} value={event.phase} onChange={e => changeSheet(event, data => ({ ...data, phase: e.target.value as EventDraft["phase"] }))}>{phases.map(p => <option key={p}>{p}</option>)}</select></td>
                 <td><div className="row-actions">
                   <IconButton label={`Editar evento ${event.orderNumber} en planilla`} onClick={() => beginEdit(event, "sheet")}><Pencil size={16} /></IconButton>
-                  <IconButton label={`Agregar sala a ${event.orderNumber}`} onClick={() => changeSheet(event, data => ({ ...data, assignments: [...data.assignments, newAssignment()] }))}><Plus size={16} /></IconButton>
+                  <button type="button" className="sheet-add-room" title={`Agregar sala a ${event.orderNumber}`} onClick={() => changeSheet(event, data => ({ ...data, assignments: [...data.assignments, newAssignment()] }))}><Plus size={15} />Sala</button>
                   <IconButton label={`Eliminar sala ${assignment.salon || "sin nombre"} de ${event.orderNumber}`} disabled={event.assignments.length === 1} onClick={() => changeSheet(event, data => ({ ...data, assignments: data.assignments.filter(a => a.id !== assignment.id) }))}><X size={16} /></IconButton>
                   <IconButton label={`Eliminar evento ${event.orderNumber}`} onClick={() => void removeEvent(event)}><Trash2 size={16} /></IconButton>
                 </div></td>
