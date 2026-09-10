@@ -49,6 +49,7 @@ type EventDraft = Omit<EventRecord, "id">;
 
 const colors = ["#ff2a1f", "#ffed00", "#00e51f", "#9a00ff", "#69a0e8", "#f5c8c9", "#f300dc", "#6547a5", "#ffe79a", "#ff9700"];
 const operatorOptions = ["", "Lean", "Pablo", "Giuli", "Rodri", "Cami", "Lucas", "Esteban", "Maca", "Paola", "Jero", "Carla"];
+const localStorageKey = "congress-cctv-agenda-events";
 
 const emptyAssignment: Assignment = {
   salon: "",
@@ -171,6 +172,29 @@ function csvEscape(value: string | number | boolean) {
   return `"${String(value).replaceAll('"', '""')}"`;
 }
 
+function readLocalEvents() {
+  try {
+    const saved = window.localStorage.getItem(localStorageKey);
+    if (!saved) return null;
+    const parsed = JSON.parse(saved) as EventRecord[];
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalEvents(nextEvents: EventRecord[]) {
+  window.localStorage.setItem(localStorageKey, JSON.stringify(nextEvents));
+}
+
+function createLocalEvent(payload: EventDraft): EventRecord {
+  return {
+    ...payload,
+    id: Date.now(),
+    assignments: payload.assignments.length ? payload.assignments : [{ ...emptyAssignment }],
+  };
+}
+
 function normalizeToolEvent(input: unknown): EventDraft {
   if (!input || typeof input !== "object") {
     throw new Error("Datos de evento invalidos.");
@@ -211,7 +235,11 @@ export default function AgendaApp() {
           setMessage(data.events.length ? "Agenda sincronizada" : "Usando datos de ejemplo");
         }
       })
-      .catch(() => setMessage("Modo vista previa local"));
+      .catch(() => {
+        const localEvents = readLocalEvents();
+        setEvents(localEvents?.length ? localEvents : sampleEvents);
+        setMessage("Vista local: guarda en este navegador");
+      });
   }, []);
 
   useEffect(() => {
@@ -315,15 +343,23 @@ export default function AgendaApp() {
     const payload = { ...draft, assignments: draft.assignments.filter((item) => item.salon || item.director || item.cameras || item.vmix || item.volante) };
     const url = editingId ? `/api/events/${editingId}` : "/api/events";
     const method = editingId ? "PUT" : "POST";
-    const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    if (!response.ok) {
-      setMessage("No se pudo guardar. Revisar conexion o base de datos.");
-      return;
+    try {
+      const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      if (!response.ok) throw new Error("API unavailable");
+      const data = await response.json();
+      setEvents((current) => (editingId ? current.map((item) => (item.id === editingId ? data.event : item)) : [...current, data.event]));
+      setMessage("Cambios guardados");
+      resetForm();
+    } catch {
+      setEvents((current) => {
+        const nextEvent = editingId ? { ...payload, id: editingId } : createLocalEvent(payload);
+        const nextEvents = editingId ? current.map((item) => (item.id === editingId ? nextEvent : item)) : [...current, nextEvent];
+        writeLocalEvents(nextEvents);
+        return nextEvents;
+      });
+      setMessage("Guardado en vista local");
+      resetForm();
     }
-    const data = await response.json();
-    setEvents((current) => (editingId ? current.map((item) => (item.id === editingId ? data.event : item)) : [...current, data.event]));
-    setMessage("Cambios guardados");
-    resetForm();
   }
 
   async function removeEvent(id: number) {
@@ -335,7 +371,14 @@ export default function AgendaApp() {
     if (response.ok) {
       setEvents((current) => current.filter((item) => item.id !== id));
       setMessage("Evento eliminado");
+      return;
     }
+    setEvents((current) => {
+      const nextEvents = current.filter((item) => item.id !== id);
+      writeLocalEvents(nextEvents);
+      return nextEvents;
+    });
+    setMessage("Evento eliminado de la vista local");
   }
 
   function editEvent(event: EventRecord) {
