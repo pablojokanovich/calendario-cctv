@@ -73,6 +73,7 @@ const localStorageKey = "congress-cctv-agenda-events";
 const themeKey = "congress-cctv-theme";
 const operatorOptions = ["Lean", "Pablo", "Giuli", "Rodri", "Cami", "Lucas", "Esteban", "Maca", "Paola", "Jero", "Carla"];
 const sheetColumnWidths = [92, 158, 125, 112, 112, 112, 145, 178, 205, 235, 185, 190, 138, 128, 112, 170];
+const weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 type Editing = { id: number | null; data: EventDraft; mode: "form" | "sheet"; dirty: boolean };
 
 function IconButton({ label, children, ...props }: { label: string; children: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -412,8 +413,8 @@ export default function AgendaApp() {
     <section className="workspace">
       {view === "calendar" ? <section className="calendar-panel" aria-label="Calendario mensual">
         <div className="calendar-inner">
-          <div className="weekday-row">{["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"].map(day => <span key={day}>{day}</span>)}</div>
-          <div className="calendar-grid">{monthDays.map(day => <article key={day.iso} className={`day-cell ${day.inMonth ? "" : "muted"} ${day.iso === dateIso(new Date()) ? "today" : ""}`}>
+          <div className="weekday-row">{weekdays.map((day, index) => <span key={day} className={index >= 5 ? "weekend-head" : ""}>{day}</span>)}</div>
+          <div className="calendar-grid">{monthDays.map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === dateIso(new Date()) ? "today" : ""}`}>
             <time dateTime={day.iso}>{day.date.getDate()}</time>
             {events.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>
               <button type="button" className="event-chip" key={event.id} style={{ background: event.color, color: darkColor(event.color) ? "#fff" : "#111" }} onClick={() => beginEdit(event, "form")}>

@@ -8,6 +8,8 @@
   --line: #ced5db;
   --panel: #ffffff;
   --panel-muted: #edf0f3;
+  --weekend-bg: #e3e8ed;
+  --weekend-head: #d7e1e8;
   --accent: #006da6;
   --accent-soft: #e7f4fc;
   --header: #162329;
@@ -22,6 +24,8 @@
   --line: #42484c;
   --panel: #202426;
   --panel-muted: #292e31;
+  --weekend-bg: #242a2d;
+  --weekend-head: #30383d;
   --accent: #087aae;
   --accent-soft: #203c49;
   --header: #101314;
@@ -101,9 +105,12 @@ svg { flex-shrink: 0; }
 .weekday-row, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .weekday-row { background: var(--panel-muted); font-size: 14px; font-weight: 600; text-align: center; border-bottom: 2px solid var(--accent); }
 .weekday-row span { padding: 10px 4px; overflow-wrap: anywhere; }
+.weekday-row .weekend-head { background: var(--weekend-head); }
 .day-cell { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); min-height: 140px; min-width: 0; padding: 6px; }
 .day-cell:nth-child(7n) { border-right: 0; }
+.day-cell.weekend { background: var(--weekend-bg); }
 .day-cell.muted { background: var(--panel-muted); }
+.day-cell.weekend.muted { background: color-mix(in srgb, var(--weekend-bg) 72%, var(--panel-muted)); }
 .day-cell time { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin: 0 0 6px auto; font-size: 14px; border-radius: 4px; color: var(--ink-soft); }
 .day-cell.today time { background: var(--accent); color: #fff; font-weight: 700; }
 .event-chip { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; width: 100%; min-width: 0; border: 0; border-radius: 3px; text-align: left; padding: 7px; margin-bottom: 6px; font-size: 13px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
