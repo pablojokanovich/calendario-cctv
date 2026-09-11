@@ -436,8 +436,8 @@ ${calendario}
     {error && <div className="error-message" role="alert">{error}</div>}
 
     {editing && <div className="edit-bar">
-      <div><strong>{editing.id === null ? "Nuevo evento" : `Editando ${editing.data.orderNumber}`}</strong><span>{editing.dirty ? editing.id === null ? "Cambios sin guardar" : "Autoguardado pendiente" : "Guardado"}</span></div>
-      <div className="edit-actions"><button type="button" disabled={saving} onClick={cancelEdit}><X size={17} />Cancelar</button><button type="button" className="primary" disabled={saving} onClick={() => void save()}><Save size={17} />{saving ? "Guardando..." : "Guardar ahora"}</button></div>
+      <div><strong>{editing.id === null ? "Nuevo evento" : `Editando ${editing.data.orderNumber}`}</strong><span>{saving ? "Guardando..." : editing.dirty ? editing.id === null ? "Cambios sin guardar" : "Autoguardado pendiente" : editing.id === null ? "Sin cambios" : "Guardado automáticamente"}</span></div>
+      <div className="edit-actions"><button type="button" disabled={saving} onClick={cancelEdit}><X size={17} />Cancelar</button><button type="button" className="primary" disabled={saving || (editing.id !== null && !editing.dirty)} onClick={() => void save()}>{editing.id !== null && !editing.dirty ? <Check size={17} /> : <Save size={17} />}{saving ? "Guardando..." : editing.id !== null && !editing.dirty ? "Guardado" : "Guardar ahora"}</button></div>
     </div>}
 
     {editing?.mode === "form" && draft && <form ref={formRef} className="editor" onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }}>
