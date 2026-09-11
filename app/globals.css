@@ -153,6 +153,17 @@ th.pinned { z-index: 4; }
 .sheet-citation-link { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 112px; min-height: 32px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; background: color-mix(in srgb, var(--event-ink) 9%, transparent); color: var(--event-ink); font-size: 13px; font-weight: 700; text-decoration: none; }
 .sheet-citation-link:hover { filter: brightness(.95); }
 .empty-state { padding: 30px; color: var(--ink-soft); }
+.login-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at top, color-mix(in srgb, var(--accent) 14%, transparent), transparent 34%), var(--background); }
+.login-card { width: min(100%, 420px); display: grid; gap: 18px; padding: 24px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 18px 50px rgba(0, 0, 0, .14); }
+.login-brand { display: flex; align-items: center; gap: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.login-brand span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 6px; background: var(--accent); color: #fff; }
+.login-brand p { margin: 0 0 2px; color: var(--ink-soft); font-size: 13px; font-weight: 700; text-transform: uppercase; }
+.login-brand h1 { margin: 0; font-size: 24px; }
+.login-card label { display: grid; gap: 8px; font-weight: 700; }
+.login-input { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-muted); color: var(--ink-soft); }
+.login-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.login-input input { flex: 1; min-width: 0; height: 42px; padding: 0; border: 0; outline: 0; background: transparent; color: var(--foreground); font: inherit; }
+.login-error { padding: 10px 12px; border: 1px solid #f3a2a2; border-radius: 6px; background: #fff1f1; color: #971515; font-size: 14px; font-weight: 700; }
 
 @media (min-width: 1600px) {
   .day-cell { min-height: 160px; }
