@@ -52,7 +52,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
   await act(async () => { renderer = create(React.createElement(App)); });
   const root = () => renderer.root;
   const button = label => root().findAllByType("button").find(b => b.props["aria-label"] === label || b.children.includes(label));
-  const input = label => root().findAllByType("input").find(i => i.props["aria-label"] === label);
+  const input = label => root().findAll(node => (node.type === "input" || node.type === "textarea") && node.props["aria-label"] === label)[0];
   async function click(label) {
     const found = button(label);
     assert.ok(found, "Missing button: " + label);

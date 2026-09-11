@@ -89,8 +89,10 @@ function CrewEditor({ role, people, onChange, onFocus, compact = false }: {
   return <div className={compact ? "crew-editor compact" : "crew-editor"} role="group" aria-label={roleLabels[role]}>
     {!compact && <div className="crew-heading"><span>{roleLabels[role]}</span><span className="confirmation-label">Confirmado</span></div>}
     {people.map((person, index) => <div className="person-row" key={person.id}>
-      <input aria-label={`${roleLabels[role]} ${index + 1}`} placeholder="Nombre" list="operators" value={person.name}
-        onFocus={onFocus} onChange={e => update(person.id, { name: e.target.value, confirmed: false })} />
+      {compact ? <textarea aria-label={`${roleLabels[role]} ${index + 1}`} placeholder="Nombre" rows={2} value={person.name}
+        onFocus={onFocus} onChange={e => update(person.id, { name: e.target.value, confirmed: false })} /> :
+        <input aria-label={`${roleLabels[role]} ${index + 1}`} placeholder="Nombre" list="operators" value={person.name}
+          onFocus={onFocus} onChange={e => update(person.id, { name: e.target.value, confirmed: false })} />}
       <input type="checkbox" aria-label={`Confirmar ${roleLabels[role]} ${index + 1}: ${person.name || "sin asignar"}`}
         title={person.confirmed ? "Confirmado" : "Pendiente de confirmación"}
         disabled={!person.name.trim()} checked={person.confirmed}
@@ -380,12 +382,15 @@ ${calendario}
   }
 
   function sheetField(event: EventRecord, field: keyof Omit<EventDraft, "assignments">, label: string, type = "text") {
+    if (type === "text") return <textarea aria-label={`${label} · ${event.orderNumber}`} rows={2} value={event[field]}
+      onFocus={() => { beginEdit(event, "sheet"); }}
+      onChange={e => changeSheet(event, data => ({ ...data, [field]: e.target.value }))} />;
     return <input aria-label={`${label} · ${event.orderNumber}`} type={type} value={event[field]}
       onFocus={() => { beginEdit(event, "sheet"); }}
       onChange={e => changeSheet(event, data => ({ ...data, [field]: e.target.value }))} />;
   }
   function assignmentField(event: EventRecord, assignment: Assignment, field: "salon" | "serviceType" | "vmixType", label: string) {
-    return <input aria-label={`${label} · ${event.orderNumber}`} value={assignment[field]}
+    return <textarea aria-label={`${label} · ${event.orderNumber}`} rows={2} value={assignment[field]}
       onFocus={() => { beginEdit(event, "sheet"); }}
       onChange={e => changeSheetAssignment(event, assignment.id, { [field]: e.target.value })} />;
   }
