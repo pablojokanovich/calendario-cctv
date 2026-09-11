@@ -909,6 +909,18 @@
     };
   }
 
+  function applyAgendaDayTypes(setupDate, startDate, endDate) {
+    if (!days.length) return;
+    days = days.map(day => {
+      if (setupDate && day.date === setupDate && day.date >= startDate && day.date <= endDate) return { ...day, tipo: 'armado_evento' };
+      if (setupDate && day.date === setupDate) return { ...day, tipo: 'armado' };
+      if (startDate && endDate && day.date >= startDate && day.date <= endDate) return { ...day, tipo: 'evento' };
+      return day;
+    });
+    renderDays();
+    renderList();
+  }
+
   function applyAgendaPayload() {
     const params = new URLSearchParams(window.location.search);
     let payload = null;
@@ -924,9 +936,12 @@
       evento: payload?.eventName || params.get('evento') || '',
       orden: payload?.orderNumber || params.get('orden') || '',
       lugar: payload?.location || params.get('lugar') || '',
-      inicio: payload?.startDate || params.get('inicio') || '',
+      armado: payload?.setupDate || params.get('armado') || '',
+      eventoInicio: payload?.startDate || params.get('eventoInicio') || '',
+      inicio: params.get('inicio') || payload?.setupDate || payload?.startDate || '',
       fin: payload?.endDate || params.get('fin') || ''
     };
+    if (values.armado && values.inicio && values.armado < values.inicio) values.inicio = values.armado;
 
     if (values.evento) document.getElementById('f-evento').value = values.evento;
     if (values.orden) document.getElementById('f-orden').value = values.orden;
@@ -934,7 +949,10 @@
     if (values.inicio) document.getElementById('f-fecha').value = values.inicio;
     if (values.fin) document.getElementById('f-fechafin').value = values.fin;
 
-    if (values.inicio && values.fin) buildDays();
+    if (values.inicio && values.fin) {
+      buildDays();
+      applyAgendaDayTypes(values.armado, values.eventoInicio || values.inicio, values.fin);
+    }
 
     if (payload?.people?.length) {
       selected = {};

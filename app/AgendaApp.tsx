@@ -167,11 +167,14 @@ function citationPayload(event: EventRecord, selectedAssignment: Assignment) {
   };
 }
 function citationLink(event: EventRecord, assignment: Assignment) {
+  const firstCitationDate = event.setupDate && event.setupDate < event.startDate ? event.setupDate : event.startDate;
   const params = new URLSearchParams({
     evento: event.eventName,
     orden: event.orderNumber,
     lugar: event.location,
-    inicio: event.startDate,
+    armado: event.setupDate,
+    inicio: firstCitationDate,
+    eventoInicio: event.startDate,
     fin: event.endDate,
     sala: assignment.salon,
     servicio: assignment.serviceType,
