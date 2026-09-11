@@ -71,7 +71,7 @@ const sampleEvents = [
 
 const localStorageKey = "congress-cctv-agenda-events";
 const themeKey = "congress-cctv-theme";
-const citationsUrl = "https://planillascctv.vercel.app/citaciones.html";
+const citationsUrl = "/citaciones.html";
 const operatorOptions = [
   "Lean", "Pablo", "Giuli", "Rodri", "Cami", "Lucas", "Esteban", "Maca", "Paola", "Jero", "Carla",
   "Fernando Standke", "Rodrigo Sorribes", "Pablo Daniel Nami", "Fiorella Farias", "Macarena Bultri",
