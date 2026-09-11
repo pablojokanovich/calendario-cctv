@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw } from "lucide-react";
+import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink } from "lucide-react";
 import { colors, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
@@ -71,6 +71,7 @@ const sampleEvents = [
 
 const localStorageKey = "congress-cctv-agenda-events";
 const themeKey = "congress-cctv-theme";
+const citationsUrl = "https://planillascctv.vercel.app/citaciones.html";
 const operatorOptions = [
   "Lean", "Pablo", "Giuli", "Rodri", "Cami", "Lucas", "Esteban", "Maca", "Paola", "Jero", "Carla",
   "Fernando Standke", "Rodrigo Sorribes", "Pablo Daniel Nami", "Fiorella Farias", "Macarena Bultri",
@@ -78,7 +79,7 @@ const operatorOptions = [
   "Carla Vazquez", "Barbara Sotelo", "Esteban Gomez", "Jeronimo Catalano", "Esteban Santamarina",
   "Sofia Bocanera", "Noelia Arvallo", "Guido Montini",
 ];
-const sheetColumnWidths = [76, 130, 110, 98, 98, 98, 120, 150, 165, 185, 145, 150, 115, 112, 96, 130];
+const sheetColumnWidths = [76, 130, 110, 98, 98, 98, 120, 150, 165, 185, 145, 150, 115, 112, 96, 164];
 const weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 type Editing = { id: number | null; data: EventDraft; mode: "form" | "sheet"; dirty: boolean };
 
@@ -123,6 +124,60 @@ function phaseFor(event: EventDraft, day: string) {
   const setup = event.setupDate === day;
   const live = day >= event.startDate && day <= event.endDate;
   return setup && live ? "ARMADO / EVENTO" : setup ? "ARMADO" : "EVENTO";
+}
+function citationPayload(event: EventRecord, selectedAssignment: Assignment) {
+  const people = new Map<string, { name: string; role: string; salon: string; confirmed: boolean }>();
+  event.assignments.forEach(assignment => {
+    roles.forEach(role => assignment.crew[role].forEach(person => {
+      const name = person.name.trim();
+      if (!name) return;
+      const key = name.toLocaleLowerCase("es-AR");
+      const current = people.get(key);
+      people.set(key, {
+        name,
+        role: current?.role || roleLabels[role],
+        salon: [current?.salon, assignment.salon].filter(Boolean).join(current?.salon && assignment.salon ? " / " : ""),
+        confirmed: Boolean(current?.confirmed || person.confirmed),
+      });
+    }));
+  });
+  return {
+    source: "agenda-cctv",
+    orderNumber: event.orderNumber,
+    eventName: event.eventName,
+    location: event.location,
+    setupDate: event.setupDate,
+    startDate: event.startDate,
+    endDate: event.endDate,
+    selectedAssignmentId: selectedAssignment.id,
+    selectedSalon: selectedAssignment.salon,
+    selectedService: selectedAssignment.serviceType,
+    assignments: event.assignments.map(assignment => ({
+      salon: assignment.salon,
+      serviceType: assignment.serviceType,
+      vmixType: assignment.vmixType,
+      status: assignment.status,
+      crew: roles.flatMap(role => assignment.crew[role].filter(person => person.name.trim()).map(person => ({
+        name: person.name.trim(),
+        role: roleLabels[role],
+        confirmed: person.confirmed,
+      }))),
+    })),
+    people: [...people.values()],
+  };
+}
+function citationLink(event: EventRecord, assignment: Assignment) {
+  const params = new URLSearchParams({
+    evento: event.eventName,
+    orden: event.orderNumber,
+    lugar: event.location,
+    inicio: event.startDate,
+    fin: event.endDate,
+    sala: assignment.salon,
+    servicio: assignment.serviceType,
+    payload: JSON.stringify(citationPayload(event, assignment)),
+  });
+  return `${citationsUrl}?${params.toString()}`;
 }
 function localPreview() { return ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname); }
 function readLocal(): EventRecord[] | null {
@@ -511,6 +566,7 @@ ${calendario}
                 <td><select aria-label={`Día · ${event.orderNumber}`} value={event.phase} onChange={e => changeSheet(event, data => ({ ...data, phase: e.target.value as EventDraft["phase"] }))}>{phases.map(p => <option key={p}>{p}</option>)}</select></td>
                 <td><div className="row-actions">
                   <IconButton label={`Editar evento ${event.orderNumber} en planilla`} onClick={() => beginEdit(event, "sheet")}><Pencil size={16} /></IconButton>
+                  <a className="sheet-citation-link" href={citationLink(event, assignment)} target="_blank" rel="noreferrer" title={`Crear citaciones para ${event.orderNumber}`}><ExternalLink size={15} />Citaciones</a>
                   <button type="button" className="sheet-add-room" title={`Agregar sala a ${event.orderNumber}`} onClick={() => changeSheet(event, data => ({ ...data, assignments: [...data.assignments, newAssignment()] }))}><Plus size={15} />Sala</button>
                   <IconButton label={`Eliminar sala ${assignment.salon || "sin nombre"} de ${event.orderNumber}`} disabled={event.assignments.length === 1} onClick={() => changeSheet(event, data => ({ ...data, assignments: data.assignments.filter(a => a.id !== assignment.id) }))}><X size={16} /></IconButton>
                   <IconButton label={`Eliminar evento ${event.orderNumber}`} onClick={() => void removeEvent(event)}><Trash2 size={16} /></IconButton>
