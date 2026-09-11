@@ -157,6 +157,7 @@ export default function AgendaApp() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
   const [localMode, setLocalMode] = useState(false);
   const savingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -198,10 +199,10 @@ export default function AgendaApp() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [editing?.dirty]);
   useEffect(() => {
-    if (!editing?.dirty || editing.id === null || saving) return;
-    const handle = setTimeout(() => { void save({ keepEditing: true }); }, 900);
+    if (!editing?.dirty || editing.id === null || saving || autoSaving) return;
+    const handle = setTimeout(() => { void save({ keepEditing: true, auto: true }); }, 2500);
     return () => clearTimeout(handle);
-  }, [editing, saving]);
+  }, [editing, saving, autoSaving]);
   useEffect(() => {
     if (editing?.mode === "form" && focusNextForm.current) {
       formRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -300,14 +301,15 @@ export default function AgendaApp() {
     changeSheet(event, draft => ({ ...draft, assignments: draft.assignments.map(a => a.id === id ? syncCrew({ ...a, ...patch }) : a) }));
   }
 
-  async function save({ keepEditing = false }: { keepEditing?: boolean } = {}) {
+  async function save({ keepEditing = false, auto = false }: { keepEditing?: boolean; auto?: boolean } = {}) {
     if (!editing || savingRef.current) return;
     const validation = validateEvent(editing.data);
     if (validation) { setError(validation); return; }
     const snapshot = editing;
     const payload = { ...snapshot.data, assignments: snapshot.data.assignments.map(syncCrew) };
     savingRef.current = true;
-    setSaving(true);
+    if (auto) setAutoSaving(true);
+    else setSaving(true);
     setError("");
     try {
       let event: EventRecord;
@@ -340,7 +342,8 @@ export default function AgendaApp() {
       setError(err instanceof Error ? err.message : "No se pudo guardar. Tus cambios siguen abiertos.");
     } finally {
       savingRef.current = false;
-      setSaving(false);
+      if (auto) setAutoSaving(false);
+      else setSaving(false);
     }
   }
   async function removeEvent(event: EventRecord) {
@@ -437,13 +440,13 @@ ${calendario}
         <h2>{monthLabel(month)}</h2>
         <IconButton label="Mes siguiente" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
       </div> : <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2>}
-      <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
+      <div className="sync-status"><span role="status">{saving ? "Guardando..." : autoSaving ? "Autoguardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || autoSaving || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
     {error && <div className="error-message" role="alert">{error}</div>}
 
     {editing && <div className="edit-bar">
-      <div><strong>{editing.id === null ? "Nuevo evento" : `Editando ${editing.data.orderNumber}`}</strong><span>{saving ? "Guardando..." : editing.dirty ? editing.id === null ? "Cambios sin guardar" : "Autoguardado pendiente" : editing.id === null ? "Sin cambios" : "Guardado automáticamente"}</span></div>
-      <div className="edit-actions"><button type="button" disabled={saving} onClick={cancelEdit}><X size={17} />Cancelar</button><button type="button" className="primary" disabled={saving || (editing.id !== null && !editing.dirty)} onClick={() => void save()}>{editing.id !== null && !editing.dirty ? <Check size={17} /> : <Save size={17} />}{saving ? "Guardando..." : editing.id !== null && !editing.dirty ? "Guardado" : "Guardar ahora"}</button></div>
+      <div><strong>{editing.id === null ? "Nuevo evento" : `Editando ${editing.data.orderNumber}`}</strong><span>{saving ? "Guardando..." : autoSaving ? "Autoguardando..." : editing.dirty ? editing.id === null ? "Cambios sin guardar" : "Autoguardado pendiente" : editing.id === null ? "Sin cambios" : "Guardado automáticamente"}</span></div>
+      <div className="edit-actions"><button type="button" disabled={saving} onClick={cancelEdit}><X size={17} />Cancelar</button><button type="button" className="primary" disabled={saving || autoSaving || (editing.id !== null && !editing.dirty)} onClick={() => void save()}>{editing.id !== null && !editing.dirty ? <Check size={17} /> : <Save size={17} />}{saving || autoSaving ? "Guardando..." : editing.id !== null && !editing.dirty ? "Guardado" : "Guardar ahora"}</button></div>
     </div>}
 
     {editing?.mode === "form" && draft && <form ref={formRef} className="editor" onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }}>
