@@ -192,6 +192,11 @@ export default function AgendaApp() {
     return () => window.removeEventListener("beforeunload", warn);
   }, [editing?.dirty]);
   useEffect(() => {
+    if (!editing?.dirty || editing.id === null || saving) return;
+    const handle = setTimeout(() => { void save({ keepEditing: true }); }, 900);
+    return () => clearTimeout(handle);
+  }, [editing, saving]);
+  useEffect(() => {
     if (editing?.mode === "form" && focusNextForm.current) {
       formRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
       formRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
@@ -289,7 +294,7 @@ export default function AgendaApp() {
     changeSheet(event, draft => ({ ...draft, assignments: draft.assignments.map(a => a.id === id ? syncCrew({ ...a, ...patch }) : a) }));
   }
 
-  async function save() {
+  async function save({ keepEditing = false }: { keepEditing?: boolean } = {}) {
     if (!editing || savingRef.current) return;
     const validation = validateEvent(editing.data);
     if (validation) { setError(validation); return; }
@@ -313,8 +318,18 @@ export default function AgendaApp() {
         event = normalizeEvent(data.event);
       }
       setEvents(current => snapshot.id === null ? [...current, event] : current.map(item => item.id === snapshot.id ? event : item));
-      setMessage(localMode ? "Guardado en este navegador" : "Cambios guardados online");
-      setEditing(null);
+      setMessage(localMode ? "Guardado en este navegador" : keepEditing ? "Autoguardado online" : "Cambios guardados online");
+      setEditing(current => {
+        if (!keepEditing) return null;
+        if (!current || current.id !== snapshot.id || current.mode !== snapshot.mode) return current;
+        if (current !== snapshot) return current;
+        const savedData: EventDraft = {
+          orderNumber: event.orderNumber, eventName: event.eventName, location: event.location,
+          setupDate: event.setupDate, startDate: event.startDate, endDate: event.endDate,
+          phase: event.phase, color: event.color, assignments: event.assignments,
+        };
+        return { ...current, data: savedData, dirty: false };
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar. Tus cambios siguen abiertos.");
     } finally {
@@ -421,8 +436,8 @@ ${calendario}
     {error && <div className="error-message" role="alert">{error}</div>}
 
     {editing && <div className="edit-bar">
-      <div><strong>{editing.id === null ? "Nuevo evento" : `Editando ${editing.data.orderNumber}`}</strong><span>{editing.dirty ? "Cambios sin guardar" : "Sin cambios"}</span></div>
-      <div className="edit-actions"><button type="button" disabled={saving} onClick={cancelEdit}><X size={17} />Cancelar</button><button type="button" className="primary" disabled={saving} onClick={() => void save()}><Save size={17} />{saving ? "Guardando..." : "Guardar cambios"}</button></div>
+      <div><strong>{editing.id === null ? "Nuevo evento" : `Editando ${editing.data.orderNumber}`}</strong><span>{editing.dirty ? editing.id === null ? "Cambios sin guardar" : "Autoguardado pendiente" : "Guardado"}</span></div>
+      <div className="edit-actions"><button type="button" disabled={saving} onClick={cancelEdit}><X size={17} />Cancelar</button><button type="button" className="primary" disabled={saving} onClick={() => void save()}><Save size={17} />{saving ? "Guardando..." : "Guardar ahora"}</button></div>
     </div>}
 
     {editing?.mode === "form" && draft && <form ref={formRef} className="editor" onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }}>

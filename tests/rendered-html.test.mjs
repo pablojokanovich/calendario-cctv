@@ -80,25 +80,25 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
       await act(async () => input(label).props.onChange({ target: { checked: true } }));
     }
     assert.equal(input("Confirmar Camarógrafos 2: Esteban").props.checked, false);
-    await click("Guardar cambios");
+    await click("Guardar ahora");
     assert.equal(requests.at(-1).method, "PUT");
     assert.equal(requests.at(-1).url, "/api/events/7");
     assert.equal(saved.assignments[0].salon, "Sala inicial completa");
     assert.deepEqual(saved.assignments[0].crew.cameras.map(p => p.confirmed), [true, false]);
     assert.equal(saved.assignments[0].crew.director[0].confirmed, true);
     assert.equal(saved.assignments[0].crew.vmix[0].confirmed, true);
-    assert.equal(button("Guardar cambios"), undefined);
+    assert.equal(button("Guardar ahora"), undefined);
 
     await act(async () => input("Camarógrafos 1").props.onChange({ target: { value: "Rodri" } }));
     assert.equal(input("Confirmar Camarógrafos 1: Rodri").props.checked, false);
     failSave = true;
-    await click("Guardar cambios");
+    await click("Guardar ahora");
     assert.equal(root().findByProps({ role: "alert" }).children[0], "No se pudo guardar online.");
     assert.equal(input("Camarógrafos 1").props.value, "Rodri");
-    assert.ok(button("Guardar cambios"), "Failed save must keep editable draft");
+    assert.ok(button("Guardar ahora"), "Failed save must keep editable draft");
     assert.equal(storage.has("congress-cctv-agenda-events"), false, "Online save errors must not claim local persistence");
     failSave = false;
-    await click("Guardar cambios");
+    await click("Guardar ahora");
     await click("Activar modo oscuro");
     assert.equal(document.documentElement.dataset.theme, "dark");
     assert.equal(storage.get("congress-cctv-theme"), "dark");
