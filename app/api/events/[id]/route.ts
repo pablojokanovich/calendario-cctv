@@ -3,6 +3,8 @@ import { getDb } from "../../../../db";
 import { events } from "../../../../db/schema";
 import { EventValidationError, normalizeEvent, toPayload } from "../../../../lib/agenda";
 
+export const runtime = "nodejs";
+
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;

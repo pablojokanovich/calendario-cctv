@@ -3,6 +3,8 @@ import { getDb } from "../../../db";
 import { events } from "../../../db/schema";
 import { EventValidationError, normalizeEvent, toPayload } from "../../../lib/agenda";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   try {
     const rows = await getDb().select().from(events).orderBy(asc(events.startDate), asc(events.orderNumber));
