@@ -118,7 +118,7 @@ svg { flex-shrink: 0; }
 .event-chip strong { font-size: 14px; }
 .event-chip small { font-size: 12px; font-weight: 700; padding-top: 4px; }
 .sheet-panel { width: 100%; min-width: 0; background: var(--panel); border: 1px solid var(--line); }
-.sheet-scroll { overflow: auto; max-height: calc(100dvh - 250px); min-height: 240px; scrollbar-gutter: stable; }
+.sheet-scroll { overflow-x: auto; min-height: 240px; scrollbar-gutter: stable; }
 table { border-collapse: separate; border-spacing: 0; width: 1978px; min-width: 100%; table-layout: fixed; }
 th, td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 8px; font-size: 14px; text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
 th { position: sticky; top: 0; z-index: 3; background: var(--panel-muted); color: var(--foreground); font-weight: 700; vertical-align: middle; height: 60px; }
@@ -171,7 +171,6 @@ th.pinned { z-index: 4; }
   .calendar-inner { min-width: 700px; }
   .month-navigation { width: 100%; justify-content: space-between; }
   .month-navigation h2 { width: auto; font-size: 18px; }
-  .sheet-scroll { max-height: 65dvh; }
   .event-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .editor { padding: 12px; }
   .sheet-panel .pinned-1 { position: static; box-shadow: none; }
