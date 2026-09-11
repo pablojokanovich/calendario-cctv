@@ -72,7 +72,7 @@ const sampleEvents = [
 const localStorageKey = "congress-cctv-agenda-events";
 const themeKey = "congress-cctv-theme";
 const operatorOptions = ["Lean", "Pablo", "Giuli", "Rodri", "Cami", "Lucas", "Esteban", "Maca", "Paola", "Jero", "Carla"];
-const sheetColumnWidths = [92, 158, 125, 112, 112, 112, 145, 178, 205, 235, 185, 190, 138, 128, 112, 170];
+const sheetColumnWidths = [76, 130, 110, 98, 98, 98, 120, 150, 165, 185, 145, 150, 115, 112, 96, 130];
 const weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 type Editing = { id: number | null; data: EventDraft; mode: "form" | "sheet"; dirty: boolean };
 
