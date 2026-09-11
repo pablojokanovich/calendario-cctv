@@ -237,7 +237,9 @@ export default function AgendaApp() {
     });
   }, [month]);
 
-  const rows = events.flatMap(event => {
+  const todayIso = dateIso(new Date());
+  const sheetEvents = events.filter(event => event.endDate >= todayIso || (editing?.id === event.id && editing.mode === "sheet"));
+  const rows = sheetEvents.flatMap(event => {
     const current = editing?.id === event.id && editing.mode === "sheet" ? { ...editing.data, id: event.id } : event;
     return current.assignments.map(assignment => ({ event: current, assignment }));
   });
@@ -408,7 +410,7 @@ ${calendario}
         <IconButton label="Mes anterior" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={20} /></IconButton>
         <h2>{monthLabel(month)}</h2>
         <IconButton label="Mes siguiente" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
-      </div> : <h2>Planilla de eventos <span className="count">{events.length}</span></h2>}
+      </div> : <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2>}
       <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
     {error && <div className="error-message" role="alert">{error}</div>}
@@ -486,7 +488,7 @@ ${calendario}
                 </div></td>
               </tr>)}</tbody>
             </table>
-            {!rows.length && <p className="empty-state">{loading ? "Cargando eventos..." : "No hay eventos cargados."}</p>}
+            {!rows.length && <p className="empty-state">{loading ? "Cargando eventos..." : "No hay eventos vigentes en la planilla."}</p>}
           </div>
         </fieldset>
       </section>}
