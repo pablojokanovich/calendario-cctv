@@ -29,6 +29,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
   globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
   globalThis.document = { documentElement: { dataset: {} } };
   globalThis.window = {
+    setTimeout, clearTimeout,
     location: { hostname: "agenda.example" }, localStorage: globalThis.localStorage,
     matchMedia: () => ({ matches: false }), addEventListener() {}, removeEventListener() {}, confirm: () => true,
   };
@@ -67,6 +68,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
       assert.ok(calendarText.includes(name), "Calendar must show assigned room and operator: " + name);
     }
     await click("Nuevo evento");
+    assert.equal(root().findByType("aside").props["aria-labelledby"], "editor-title");
     let sala = root().findByProps({ placeholder: "Nombre de sala (opcional)" });
     const original = sala;
     for (const char of "Libertador ABC") {
@@ -88,6 +90,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     }
     assert.equal(input("Confirmar Camarógrafos 2: Esteban").props.checked, false);
     await click("Guardar ahora");
+    assert.ok(root().findAllByProps({ className: "save-notice" }).length);
     assert.equal(requests.at(-1).method, "PUT");
     assert.equal(requests.at(-1).url, "/api/events/7");
     assert.equal(saved.assignments[0].salon, "Sala inicial completa");

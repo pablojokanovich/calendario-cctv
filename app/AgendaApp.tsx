@@ -216,6 +216,7 @@ export default function AgendaApp() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [localMode, setLocalMode] = useState(false);
+  const [savedNotice, setSavedNotice] = useState("");
   const savingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const focusNextForm = useRef(false);
@@ -257,11 +258,26 @@ export default function AgendaApp() {
   }, [editing?.dirty]);
   useEffect(() => {
     if (editing?.mode === "form" && focusNextForm.current) {
-      formRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
       formRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
       focusNextForm.current = false;
     }
   }, [editing?.mode, editing?.id]);
+  useEffect(() => {
+    if (!savedNotice) return;
+    const timeout = window.setTimeout(() => setSavedNotice(""), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [savedNotice]);
+  useEffect(() => {
+    if (editing?.mode !== "form") return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !savingRef.current && (!editing.dirty || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"))) {
+        setEditing(null);
+        setError("");
+      }
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [editing]);
 
   useEffect(() => {
     if (!document.modelContext?.registerTool) return;
@@ -324,6 +340,7 @@ export default function AgendaApp() {
     if (!canLeave()) return false;
     focusNextForm.current = mode === "form";
     setError("");
+    setSavedNotice("");
     setEditing({ id: event?.id ?? null, data: event ? structuredClone(event) : newDraft(), mode, dirty: false });
     return true;
   }
@@ -378,6 +395,7 @@ export default function AgendaApp() {
       }
       setEvents(current => snapshot.id === null ? [...current, event] : current.map(item => item.id === snapshot.id ? event : item));
       setMessage(localMode ? "Guardado en este navegador" : "Cambios guardados online");
+      setSavedNotice(localMode ? "Guardado en este navegador" : "Cambios guardados");
       setEditing(current => {
         if (!keepEditing) return null;
         if (!current || current.id !== snapshot.id || current.mode !== snapshot.mode) return current;
@@ -470,7 +488,7 @@ ${calendario}
   }
   const draft = editing?.data;
 
-  return <main className="app-shell">
+  return <main className={`app-shell${editing?.mode === "form" ? " has-editor" : ""}`}>
     <datalist id="operators">{operatorOptions.map(name => <option key={name} value={name} />)}</datalist>
     <header className="toolbar">
       <div className="brand"><span className="brand-mark"><CalendarDays size={23} /></span><div><p>Congress Rental · CCTV</p><h1>Agenda operativa</h1></div></div>
@@ -489,17 +507,21 @@ ${calendario}
         <IconButton label="Mes anterior" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={20} /></IconButton>
         <h2>{monthLabel(month)}</h2>
         <IconButton label="Mes siguiente" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
+        <button type="button" className="today-button" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoy</button>
       </div> : <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2>}
       <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
     {error && <div className="error-message" role="alert">{error}</div>}
 
-    {editing && <div className="edit-bar">
+    {editing?.mode === "sheet" && editing.dirty && <div className="edit-bar">
       <div><strong>{editing.id === null ? "Nuevo evento" : `Editando ${editing.data.orderNumber}`}</strong><span>{saving ? "Guardando..." : editing.dirty ? "Cambios sin guardar" : editing.id === null ? "Sin cambios" : "Guardado"}</span></div>
       <div className="edit-actions"><button type="button" disabled={saving} onClick={cancelEdit}><X size={17} />Cancelar</button><button type="button" className="primary" disabled={saving || (editing.id !== null && !editing.dirty)} onClick={() => void save()}>{editing.id !== null && !editing.dirty ? <Check size={17} /> : <Save size={17} />}{saving ? "Guardando..." : editing.id !== null && !editing.dirty ? "Guardado" : "Guardar ahora"}</button></div>
     </div>}
 
-    {editing?.mode === "form" && draft && <form ref={formRef} className="editor" onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }}>
+    {editing?.mode === "form" && draft && <aside className="editor-panel" aria-labelledby="editor-title">
+      <div className="editor-header"><div><p>{editing.id === null ? "Agenda CCTV" : `Orden ${draft.orderNumber}`}</p><h2 id="editor-title">{editing.id === null ? "Nuevo evento" : "Editar evento"}</h2></div><IconButton label="Cerrar editor" disabled={saving} onClick={cancelEdit}><X size={20} /></IconButton></div>
+      <form ref={formRef} className="editor" onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }}>
+      {error && <div className="error-message">{error}</div>}
       <fieldset disabled={saving}>
         <div className="event-fields">
           <label>Nro. de orden<input required value={draft.orderNumber} onChange={e => changeDraft({ orderNumber: e.target.value })} /></label>
@@ -522,9 +544,10 @@ ${calendario}
           </div>
           <div className="room-crew">{roles.map(role => <CrewEditor key={role} role={role} people={assignment.crew[role]} onChange={people => changeAssignment(assignment.id, { crew: { ...assignment.crew, [role]: people } })} />)}</div>
         </div>)}
-        <div className="form-footer"><button type="submit" className="primary"><Save size={17} />{editing.id === null ? "Agregar evento" : "Guardar cambios"}</button></div>
+        <div className="form-footer"><span>{saving ? "Guardando..." : editing.dirty ? "Cambios sin guardar" : "Sin cambios"}</span><button type="button" onClick={cancelEdit}>Cancelar</button><button type="submit" className="primary" disabled={saving || (editing.id !== null && !editing.dirty)}><Save size={17} />{saving ? "Guardando..." : editing.id === null ? "Agregar evento" : "Guardar cambios"}</button></div>
       </fieldset>
-    </form>}
+    </form></aside>}
+    {savedNotice && <div className="save-notice" role="status"><Check size={17} />{savedNotice}</div>}
 
     <section className="workspace">
       {view === "calendar" ? <section className="calendar-panel" aria-label="Calendario mensual">
@@ -534,9 +557,9 @@ ${calendario}
             <time dateTime={day.iso}>{day.date.getDate()}</time>
             {events.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>
               <button type="button" className="event-chip" key={event.id} style={{ background: event.color, color: darkColor(event.color) ? "#fff" : "#111" }} onClick={() => beginEdit(event, "form")}>
-                <strong>{event.orderNumber} · {event.eventName}</strong><span>{event.location}</span>
+                <span className="calendar-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span className="calendar-location">{event.location}</span>
                 {event.assignments.map(assignment => <span className="calendar-room" key={assignment.id}>
-                  <span>{[assignment.salon, assignment.serviceType].filter(Boolean).join(" · ")}</span>
+                  <span className="calendar-room-name">{assignment.salon}</span><span className="calendar-service">{assignment.serviceType}</span>
                   {roles.map(role => {
                     const people = assignment.crew[role].filter(person => person.name.trim());
                     return people.length > 0 && <span className="calendar-crew" key={role}>
@@ -548,7 +571,9 @@ ${calendario}
                     </span>;
                   })}
                 </span>)}
-                <small>{phaseFor(event, day.iso)}</small>
+                <span className="calendar-badges"><small className="phase-badge">{phaseFor(event, day.iso)}</small>
+                  {event.assignments.some(a => roles.some(role => a.crew[role].some(person => person.name.trim() && !person.confirmed))) && <small className="pending-badge">Por confirmar</small>}
+                </span>
               </button>)}
           </article>)}</div>
         </div>
