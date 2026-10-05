@@ -535,7 +535,19 @@ ${calendario}
             {events.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>
               <button type="button" className="event-chip" key={event.id} style={{ background: event.color, color: darkColor(event.color) ? "#fff" : "#111" }} onClick={() => beginEdit(event, "form")}>
                 <strong>{event.orderNumber} · {event.eventName}</strong><span>{event.location}</span>
-                {event.assignments.map(a => <span key={a.id}>{[a.salon, a.serviceType].filter(Boolean).join(" · ")}</span>)}
+                {event.assignments.map(assignment => <span className="calendar-room" key={assignment.id}>
+                  <span>{[assignment.salon, assignment.serviceType].filter(Boolean).join(" · ")}</span>
+                  {roles.map(role => {
+                    const people = assignment.crew[role].filter(person => person.name.trim());
+                    return people.length > 0 && <span className="calendar-crew" key={role}>
+                      <b>{roleLabels[role]}: </b>
+                      {people.map((person, index) => <span key={person.id}>
+                        {index > 0 && ", "}{person.name.trim()}
+                        {person.confirmed && <Check size={12} className="calendar-confirmed" aria-label="Confirmado" />}
+                      </span>)}
+                    </span>;
+                  })}
+                </span>)}
                 <small>{phaseFor(event, day.iso)}</small>
               </button>)}
           </article>)}</div>

@@ -4,7 +4,7 @@ import test from "node:test";
 import ts from "typescript";
 import React from "react";
 import { act, create } from "react-test-renderer";
-import { newDraft, normalizeEvent } from "../lib/agenda.ts";
+import { dateIso, newDraft, normalizeEvent } from "../lib/agenda.ts";
 
 // Exercise React reconciliation without launching or inspecting a browser.
 async function loadApp() {
@@ -32,7 +32,8 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     location: { hostname: "agenda.example" }, localStorage: globalThis.localStorage,
     matchMedia: () => ({ matches: false }), addEventListener() {}, removeEventListener() {}, confirm: () => true,
   };
-  const fixture = normalizeEvent({ ...newDraft(), id: 7, orderNumber: "0999", eventName: "Congreso", location: "CEC", startDate: "2026-09-20", endDate: "2026-09-21" });
+  const today = dateIso(new Date());
+  const fixture = normalizeEvent({ ...newDraft(), id: 7, orderNumber: "0999", eventName: "Congreso", location: "CEC", startDate: today, endDate: today });
   fixture.assignments[0].salon = "Sala inicial";
   fixture.assignments[0].crew.cameras = [{ id: "cam-a", name: "Lucas", confirmed: false }, { id: "cam-b", name: "Esteban", confirmed: false }];
   fixture.assignments[0].crew.director = [{ id: "dir-a", name: "Maca", confirmed: false }];
@@ -59,6 +60,12 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     await act(async () => found.props.onClick());
   }
   try {
+    const calendarEvent = root().findAllByProps({ className: "event-chip" })[0];
+    const textContent = node => typeof node === "string" ? node : node.children.map(textContent).join("");
+    const calendarText = textContent(calendarEvent);
+    for (const name of ["Lucas", "Esteban", "Maca", "Pablo", "Sala inicial"]) {
+      assert.ok(calendarText.includes(name), "Calendar must show assigned room and operator: " + name);
+    }
     await click("Nuevo evento");
     let sala = root().findByProps({ placeholder: "Nombre de sala (opcional)" });
     const original = sala;
