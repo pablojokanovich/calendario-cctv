@@ -322,10 +322,10 @@ export default function AgendaApp() {
   const todayIso = dateIso(new Date());
   const monthStart = dateIso(month);
   const monthEnd = dateIso(new Date(month.getFullYear(), month.getMonth() + 1, 0));
-  const calendarEvents = events.filter(event =>
+  const calendarEvents = events.filter(event => event.endDate >= todayIso && (
     (event.setupDate >= monthStart && event.setupDate <= monthEnd) ||
     (event.startDate <= monthEnd && event.endDate >= monthStart)
-  ).sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate) || a.startDate.localeCompare(b.startDate) || a.orderNumber.localeCompare(b.orderNumber));
+  )).sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate) || a.startDate.localeCompare(b.startDate) || a.orderNumber.localeCompare(b.orderNumber));
   const sheetEvents = events.filter(event => event.endDate >= todayIso || (editing?.id === event.id && editing.mode === "sheet"));
   const rows = sheetEvents.flatMap(event => {
     const current = editing?.id === event.id && editing.mode === "sheet" ? { ...editing.data, id: event.id } : event;
@@ -568,7 +568,7 @@ ${calendario}
               {summary.total ? <span className="overview-confirmations"><span className="overview-confirmed"><Check size={13} />{summary.confirmed} {summary.confirmed === 1 ? "confirmado" : "confirmados"}</span><span className={summary.pending ? "overview-pending" : "overview-complete"}>{summary.pending} por confirmar</span></span> : <span className="overview-unassigned">Sin operadores asignados</span>}
             </button></li>;
           })}</ol>
-          {!calendarEvents.length && <p className="overview-empty">{loading ? "Cargando eventos..." : "No hay eventos este mes."}</p>}
+          {!calendarEvents.length && <p className="overview-empty">{loading ? "Cargando eventos..." : "No hay eventos vigentes este mes."}</p>}
         </aside>
         <section className="calendar-panel" aria-label="Calendario mensual">
         <div className="calendar-inner">
