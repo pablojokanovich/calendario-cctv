@@ -6,7 +6,8 @@
   <title>Congress Rental — Citaciones</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%23CC1A1A'/><rect x='22' y='18' width='56' height='64' rx='6' fill='white'/><rect x='35' y='12' width='10' height='16' rx='4' fill='%23CC1A1A'/><rect x='55' y='12' width='10' height='16' rx='4' fill='%23CC1A1A'/><rect x='30' y='42' width='40' height='4' rx='2' fill='%23CC1A1A'/><rect x='30' y='54' width='30' height='4' rx='2' fill='%23CC1A1A'/><rect x='30' y='66' width='20' height='4' rx='2' fill='%23CC1A1A'/></svg>" />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="vendor/html2canvas.min.js"></script>
+  <script src="vendor/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -133,6 +134,9 @@
 
     /* CITACIONES */
     .citations-grid { display: flex; flex-direction: column; gap: 32px; }
+    .citation-bulk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .citation-bulk-actions button:disabled { opacity: .5; cursor: wait; }
+    .citation-export-status { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
     .citation-person-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 20px; }
     .citation-person-area { font-size: 12px; color: var(--red); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; margin-bottom: 12px; }
 
@@ -261,6 +265,7 @@
   <div class="view" id="view-citaciones">
     <button class="back-btn" id="back-to-evento">← Volver al evento</button>
     <div class="section-title">Citaciones — <span id="ci-evento-title"></span></div>
+    <div class="citation-bulk-actions"><button type="button" class="btn-primary" id="btn-download-all" disabled>Descargar todas (ZIP)</button><span class="citation-export-status" id="citation-export-status" role="status" aria-live="polite"></span></div>
     <div class="citations-grid" id="citations-grid"></div>
     <div id="summary-section" style="display:none;margin-top:40px">
       <div style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:18px;letter-spacing:1px;text-transform:uppercase;color:var(--red);margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)">Resumen de operadores</div>
@@ -610,7 +615,81 @@
   };
 
   // ---- GENERATE ----
+  let citationExportBusy = false;
+  function citationFilename(value) {
+    return String(value || '').trim().replace(/[<>:"/\\|?*\x00-\x1f]/g, '').replace(/\s+/g, '_') || 'sin_nombre';
+  }
+  async function citationJpg(card) {
+    const previousWidth = card.style.width;
+    const previousMaxWidth = card.style.maxWidth;
+    let canvas;
+    try {
+      if (document.fonts) await document.fonts.ready;
+      await Promise.all(Array.from(card.querySelectorAll('img'), img => img.decode().catch(() => {})));
+      card.style.width = '520px';
+      card.style.maxWidth = '520px';
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      canvas = await html2canvas(card, { scale: 3, useCORS: true, backgroundColor: '#ffffff', logging: false, width: 520 });
+      return await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('No se pudo generar el JPG.')), 'image/jpeg', .95));
+    } finally {
+      card.style.width = previousWidth;
+      card.style.maxWidth = previousMaxWidth;
+      if (canvas) { canvas.width = 0; canvas.height = 0; }
+    }
+  }
+  function downloadCitationFile(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+  async function exportCitations(task) {
+    if (citationExportBusy) return;
+    citationExportBusy = true;
+    const controls = Array.from(document.querySelectorAll('#view-citaciones button, #btn-generar-all'));
+    const previous = controls.map(button => button.disabled);
+    controls.forEach(button => { button.disabled = true; });
+    const status = document.getElementById('citation-export-status');
+    status.setAttribute('role', 'status');
+    try {
+      await task(status);
+    } catch (error) {
+      console.error('No se pudieron descargar las citaciones.', error);
+      status.setAttribute('role', 'alert');
+      status.textContent = 'No se pudo completar la descarga. Intentá nuevamente.';
+    } finally {
+      controls.forEach((button, index) => { button.disabled = previous[index]; });
+      citationExportBusy = false;
+    }
+  }
+  document.getElementById('btn-download-all').onclick = () => exportCitations(async status => {
+    const cards = Array.from(document.querySelectorAll('#citations-grid .citation-card'));
+    if (!cards.length) return;
+    const zip = new JSZip();
+    const names = new Set();
+    for (let index = 0; index < cards.length; index++) {
+      status.textContent = `Generando citación ${index + 1} de ${cards.length}...`;
+      const card = cards[index];
+      const base = `citacion_${citationFilename(card.dataset.operatorName)}`;
+      let filename = `${base}.jpg`;
+      let suffix = 2;
+      while (names.has(filename.toLowerCase())) filename = `${base}_${suffix++}.jpg`;
+      names.add(filename.toLowerCase());
+      const jpg = await citationJpg(card);
+      zip.file(filename, await jpg.arrayBuffer());
+    }
+    status.textContent = 'Preparando ZIP...';
+    const archive = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+    const grid = document.getElementById('citations-grid');
+    downloadCitationFile(archive, `citaciones_${citationFilename(grid.dataset.order)}_${citationFilename(grid.dataset.event)}.zip`);
+    status.textContent = `${cards.length} citaciones descargadas en ZIP.`;
+  });
   document.getElementById('btn-generar-all').onclick=()=>{
+    if (citationExportBusy) return;
     const evento=document.getElementById('f-evento').value.trim();
     const orden=document.getElementById('f-orden').value.trim();
     const lugar=document.getElementById('f-lugar').value.trim();
@@ -618,6 +697,9 @@
     document.getElementById('ci-evento-title').textContent=evento;
     const grid=document.getElementById('citations-grid');
     grid.innerHTML='';
+    grid.dataset.order = orden;
+    grid.dataset.event = evento;
+    document.getElementById('citation-export-status').textContent = '';
 
     Object.values(selected).forEach((sel,idx)=>{
       const {fl, puesto, sala, days: selDays}=sel;
@@ -642,6 +724,7 @@
 
       const card=document.createElement('div');
       card.className='citation-card';
+      card.dataset.operatorName = fl.nombre;
       card.innerHTML=`
         <div class="citation-body">
           <div class="citation-logo-row">
@@ -689,21 +772,14 @@
       const jpgBtn=document.createElement('button');
       jpgBtn.className='btn-jpg';
       jpgBtn.textContent='⬇️ Descargar JPG';
-      jpgBtn.onclick=async()=>{
-        jpgBtn.textContent='⏳ Generando...'; jpgBtn.disabled=true;
+      jpgBtn.onclick=()=>exportCitations(async status=>{
+        jpgBtn.textContent='⏳ Generando...';
+        status.textContent=`Generando citación de ${fl.nombre}...`;
         try {
-          card.style.width='520px';
-          card.style.maxWidth='520px';
-          await new Promise(r=>setTimeout(r,80));
-          const canvas=await html2canvas(card,{scale:3,useCORS:true,backgroundColor:'#ffffff',logging:false,width:520});
-          card.style.width='';
-          card.style.maxWidth='';
-          const a=document.createElement('a');
-          a.download=`citacion_${fl.nombre.replace(/\s+/g,'_')}.jpg`;
-          a.href=canvas.toDataURL('image/jpeg',0.95); a.click();
-        } catch(e){alert('Error al generar imagen.');}
-        finally{jpgBtn.textContent='⬇️ Descargar JPG';jpgBtn.disabled=false;}
-      };
+          downloadCitationFile(await citationJpg(card), `citacion_${citationFilename(fl.nombre)}.jpg`);
+          status.textContent='Citación descargada.';
+        } finally{jpgBtn.textContent='⬇️ Descargar JPG';}
+      });
       actions.appendChild(jpgBtn);
 
       const copyBtn=document.createElement('button');
@@ -721,6 +797,7 @@
       if(idx<Object.values(selected).length-1){const hr=document.createElement('hr');hr.className='divider';wrapper.appendChild(hr);}
       grid.appendChild(wrapper);
     });
+    document.getElementById('btn-download-all').disabled = !grid.querySelector('.citation-card');
 
     // Build summary
     const summarySection = document.getElementById('summary-section');
