@@ -592,7 +592,7 @@ ${calendario}
                   })}
                 </span>)}
                 <span className="calendar-badges"><small className="phase-badge">{phaseFor(event, day.iso)}</small>
-                  {event.assignments.some(a => roles.some(role => a.crew[role].some(person => person.name.trim() && !person.confirmed))) && <small className="pending-badge">Por confirmar</small>}
+                  {event.assignments.some(a => roles.some(role => a.crew[role].some(person => person.name.trim() && !person.confirmed))) && <small className="pending-badge">Operadores por confirmar</small>}
                 </span>
               </button>)}
           </article>)}</div>
