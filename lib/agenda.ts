@@ -29,6 +29,20 @@ export type EventDraft = {
   assignments: Assignment[];
 };
 export type EventRecord = EventDraft & { id: number };
+export function crewSummary(event: EventDraft) {
+  const people = new Map<string, boolean>();
+  for (const assignment of event.assignments) {
+    for (const role of roles) {
+      for (const person of assignment.crew[role]) {
+        const name = person.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("es-AR");
+        if (!name) continue;
+        people.set(name, (people.get(name) ?? true) && person.confirmed);
+      }
+    }
+  }
+  const confirmed = [...people.values()].filter(Boolean).length;
+  return { total: people.size, confirmed, pending: people.size - confirmed };
+}
 export const colors = ["#ff2a1f", "#ffed00", "#00e51f", "#9a00ff", "#69a0e8", "#f5c8c9", "#f300dc", "#6547a5", "#ffe79a", "#ff9700"];
 export const statuses = ["Pendiente", "A confirmar", "Confirmado", "Cerrado"];
 export const phases: EventDraft["phase"][] = ["ARMADO", "EVENTO", "ARMADO + EVENTO"];

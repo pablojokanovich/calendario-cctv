@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { newDraft, normalizeEvent, normalizeAssignment, splitOperators, toPayload, validateEvent } from "../lib/agenda.ts";
+import { crewSummary, newDraft, normalizeEvent, normalizeAssignment, splitOperators, toPayload, validateEvent } from "../lib/agenda.ts";
 
 test("legacy people remain separate and old confirmation applies only to cameras", () => {
   const room = normalizeAssignment({ salon: "LIBERTADOR ABC", director: "Maca", cameras: "Lucas, Esteban", vmix: "Pablo", wp: true });
@@ -31,4 +31,17 @@ test("an event with no room remains editable and invalid dates are rejected", ()
   assert.ok(validateEvent({ ...event, startDate: "2026-09-12", endDate: "2026-09-10" }));
   assert.ok(validateEvent({ ...event, startDate: "2026-02-31" }));
   assert.ok(validateEvent({ ...event, eventName: "   " }));
+});
+
+test("crew summary counts unique named operators and requires all their assignments to be confirmed", () => {
+  const event = newDraft();
+  assert.deepEqual(crewSummary(event), { total: 0, confirmed: 0, pending: 0 });
+  event.assignments = [normalizeAssignment({ crew: { cameras: [
+    { name: " Lucas ", confirmed: true }, { name: "Maca", confirmed: true }, { name: " ", confirmed: false },
+  ] } }), normalizeAssignment({ crew: { director: [
+    { name: "LUCAS", confirmed: false }, { name: "Pablo", confirmed: false },
+  ] } })];
+  assert.deepEqual(crewSummary(event), { total: 3, confirmed: 1, pending: 2 });
+  event.assignments[1].crew.director[0].confirmed = true;
+  assert.deepEqual(crewSummary(event), { total: 3, confirmed: 2, pending: 1 });
 });

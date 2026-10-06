@@ -64,11 +64,14 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     const calendarEvent = root().findAllByProps({ className: "event-chip" })[0];
     const textContent = node => typeof node === "string" ? node : node.children.map(textContent).join("");
     const calendarText = textContent(calendarEvent);
+    const overviewText = textContent(root().findByProps({ className: "event-overview-list" }));
+    assert.ok(overviewText.includes("0 confirmados"));
+    assert.ok(overviewText.includes("4 por confirmar"));
     for (const name of ["Lucas", "Esteban", "Maca", "Pablo", "Sala inicial"]) {
       assert.ok(calendarText.includes(name), "Calendar must show assigned room and operator: " + name);
     }
     await click("Nuevo evento");
-    assert.equal(root().findByType("aside").props["aria-labelledby"], "editor-title");
+    assert.equal(root().findByProps({ className: "editor-panel" }).props["aria-labelledby"], "editor-title");
     let sala = root().findByProps({ placeholder: "Nombre de sala (opcional)" });
     const original = sala;
     for (const char of "Libertador ABC") {

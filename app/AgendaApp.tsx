@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink } from "lucide-react";
-import { colors, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
+import { colors, crewSummary, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
   interface Document {
@@ -320,6 +320,12 @@ export default function AgendaApp() {
   }, [month]);
 
   const todayIso = dateIso(new Date());
+  const monthStart = dateIso(month);
+  const monthEnd = dateIso(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+  const calendarEvents = events.filter(event =>
+    (event.setupDate >= monthStart && event.setupDate <= monthEnd) ||
+    (event.startDate <= monthEnd && event.endDate >= monthStart)
+  ).sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate) || a.startDate.localeCompare(b.startDate) || a.orderNumber.localeCompare(b.orderNumber));
   const sheetEvents = events.filter(event => event.endDate >= todayIso || (editing?.id === event.id && editing.mode === "sheet"));
   const rows = sheetEvents.flatMap(event => {
     const current = editing?.id === event.id && editing.mode === "sheet" ? { ...editing.data, id: event.id } : event;
@@ -550,7 +556,21 @@ ${calendario}
     {savedNotice && <div className="save-notice" role="status"><Check size={17} />{savedNotice}</div>}
 
     <section className="workspace">
-      {view === "calendar" ? <section className="calendar-panel" aria-label="Calendario mensual">
+      {view === "calendar" ? <div className="calendar-layout">
+        <aside className="event-overview" aria-labelledby="event-overview-title">
+          <div className="event-overview-heading"><h2 id="event-overview-title">Eventos del mes</h2><span>{calendarEvents.length}</span></div>
+          <ol className="event-overview-list">{calendarEvents.map(event => {
+            const summary = crewSummary(event);
+            return <li key={event.id}><button type="button" className={`event-overview-item${editing?.id === event.id ? " is-selected" : ""}`} style={{ "--event-color": event.color } as CSSProperties} onClick={() => beginEdit(event, "form")} aria-label={`Editar ${event.eventName}, orden ${event.orderNumber}`}>
+              <span className="overview-order">#{event.orderNumber}</span>
+              <strong>{event.eventName}</strong><span className="overview-location">{event.location}</span>
+              <span className="overview-date">{event.setupDate ? "Armado" : "Inicio"} <time dateTime={event.setupDate || event.startDate}>{formatShort(event.setupDate || event.startDate)}</time></span>
+              {summary.total ? <span className="overview-confirmations"><span className="overview-confirmed"><Check size={13} />{summary.confirmed} {summary.confirmed === 1 ? "confirmado" : "confirmados"}</span><span className={summary.pending ? "overview-pending" : "overview-complete"}>{summary.pending} por confirmar</span></span> : <span className="overview-unassigned">Sin operadores asignados</span>}
+            </button></li>;
+          })}</ol>
+          {!calendarEvents.length && <p className="overview-empty">{loading ? "Cargando eventos..." : "No hay eventos este mes."}</p>}
+        </aside>
+        <section className="calendar-panel" aria-label="Calendario mensual">
         <div className="calendar-inner">
           <div className="weekday-row">{weekdays.map((day, index) => <span key={day} className={index >= 5 ? "weekend-head" : ""}>{day}</span>)}</div>
           <div className="calendar-grid">{monthDays.map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === dateIso(new Date()) ? "today" : ""}`}>
@@ -577,7 +597,7 @@ ${calendario}
               </button>)}
           </article>)}</div>
         </div>
-      </section> : <section className="sheet-panel" aria-label="Planilla de eventos">
+      </section></div> : <section className="sheet-panel" aria-label="Planilla de eventos">
         <fieldset disabled={saving}>
           <div className="sheet-scroll" tabIndex={0} role="region" aria-label="Planilla editable con desplazamiento horizontal">
             <table>
