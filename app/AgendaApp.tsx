@@ -1,4 +1,5 @@
 "use client";
+import type { Holiday } from "../lib/holidays";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink } from "lucide-react";
@@ -217,6 +218,9 @@ export default function AgendaApp() {
   const [saving, setSaving] = useState(false);
   const [localMode, setLocalMode] = useState(false);
   const [savedNotice, setSavedNotice] = useState("");
+  const [holidays, setHolidays] = useState<Record<string, Holiday>>({});
+  const [holidayError, setHolidayError] = useState("");
+  const [holidayRetry, setHolidayRetry] = useState(0);
   const savingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const focusNextForm = useRef(false);
@@ -318,6 +322,26 @@ export default function AgendaApp() {
       return { date, iso: dateIso(date), inMonth: date.getMonth() === month.getMonth() };
     });
   }, [month]);
+  const holidayYears = [...new Set(monthDays.map(day => day.date.getFullYear()))].join(",");
+  useEffect(() => {
+    const controller = new AbortController();
+    setHolidayError("");
+    void Promise.all(holidayYears.split(",").map(async year => {
+      try {
+        const response = await fetch(`/api/holidays?year=${year}`, { signal: controller.signal });
+        const data = await response.json() as { holidays?: Holiday[]; error?: string };
+        if (!response.ok || !Array.isArray(data.holidays)) throw new Error(data.error || `Feriados: datos no disponibles para ${year}.`);
+        return { holidays: data.holidays, error: "" };
+      } catch {
+        return { holidays: [] as Holiday[], error: `Feriados: datos no disponibles para ${year}.` };
+      }
+    })).then(results => {
+      if (controller.signal.aborted) return;
+      setHolidays(Object.fromEntries(results.flatMap(result => result.holidays.map(holiday => [holiday.date, holiday]))));
+      setHolidayError(results.map(result => result.error).filter(Boolean).join(" "));
+    });
+    return () => controller.abort();
+  }, [holidayYears, holidayRetry]);
 
   const todayIso = dateIso(new Date());
   const monthStart = dateIso(month);
@@ -518,6 +542,7 @@ ${calendario}
       <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
     {error && <div className="error-message" role="alert">{error}</div>}
+    {view === "calendar" && holidayError && <div className="holiday-status" role="status"><span>{holidayError}</span><IconButton label="Reintentar carga de feriados" onClick={() => setHolidayRetry(current => current + 1)}><RefreshCw size={14} /></IconButton></div>}
 
     {editing?.mode === "sheet" && editing.dirty && <div className="edit-bar">
       <div><strong>{editing.id === null ? "Nuevo evento" : `Editando ${editing.data.orderNumber}`}</strong><span>{saving ? "Guardando..." : editing.dirty ? "Cambios sin guardar" : editing.id === null ? "Sin cambios" : "Guardado"}</span></div>
@@ -573,8 +598,9 @@ ${calendario}
         <section className="calendar-panel" aria-label="Calendario mensual">
         <div className="calendar-inner">
           <div className="weekday-row">{weekdays.map((day, index) => <span key={day} className={index >= 5 ? "weekend-head" : ""}>{day}</span>)}</div>
-          <div className="calendar-grid">{monthDays.map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === dateIso(new Date()) ? "today" : ""}`}>
+          <div className="calendar-grid">{monthDays.map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === dateIso(new Date()) ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
             <time dateTime={day.iso}>{day.date.getDate()}</time>
+            {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
             {events.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>
               <button type="button" className="event-chip" key={event.id} style={{ background: event.color, color: darkColor(event.color) ? "#fff" : "#111" }} onClick={() => beginEdit(event, "form")}>
                 <span className="calendar-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span className="calendar-location">{event.location}</span>

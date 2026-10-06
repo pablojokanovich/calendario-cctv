@@ -137,6 +137,14 @@ svg { flex-shrink: 0; }
 .day-cell.weekend.muted { background: color-mix(in srgb, var(--weekend-bg) 72%, var(--panel-muted)); }
 .day-cell time { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin: 0 0 6px auto; font-size: 14px; border-radius: 4px; color: var(--ink-soft); }
 .day-cell.today time { background: var(--accent); color: #fff; font-weight: 700; }
+.day-cell.holiday { background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
+.day-cell.non-working { background: color-mix(in srgb, #dca32f 9%, var(--panel)); }
+.day-cell.holiday.muted, .day-cell.non-working.muted { background: var(--panel-muted); }
+.holiday-label { display: flex; flex-direction: column; gap: 3px; border-left: 2px solid var(--accent); padding: 4px 6px; margin-bottom: 8px; color: var(--accent); font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
+.holiday-label b { font-size: 10px; }
+.non-working .holiday-label { border-color: #a16a13; color: #a16a13; }
+:root[data-theme="dark"] .non-working .holiday-label { border-color: #eac375; color: #eac375; }
+.holiday-status { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; color: var(--ink-soft); font-size: 12px; }
 .event-chip { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 3px; width: 100%; min-width: 0; border: 0; border-radius: 3px; text-align: left; padding: 7px; margin-bottom: 6px; font-size: 13px; line-height: 1.35; white-space: normal; overflow-wrap: anywhere; }
 .event-chip strong { font-size: 14px; }
 .calendar-room { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; }

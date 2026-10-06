@@ -43,6 +43,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
   let failSave = false;
   const requests = [];
   globalThis.fetch = async (url, init) => {
+    if (url.startsWith("/api/holidays")) return Response.json({ holidays: [{ date: today, name: "Feriado de prueba", nonWorking: false }] });
     if (!init?.method) return Response.json({ events: [saved] });
     requests.push({ url, ...init });
     if (failSave) return Response.json({ error: "No se pudo guardar online." }, { status: 500 });
@@ -64,6 +65,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     const calendarEvent = root().findAllByProps({ className: "event-chip" })[0];
     const textContent = node => typeof node === "string" ? node : node.children.map(textContent).join("");
     const calendarText = textContent(calendarEvent);
+    assert.ok(textContent(root().findByProps({ className: "holiday-label" })).includes("Feriado de prueba"));
     const overviewText = textContent(root().findByProps({ className: "event-overview-list" }));
     assert.ok(overviewText.includes("0 confirmados"));
     assert.ok(overviewText.includes("4 por confirmar"));
