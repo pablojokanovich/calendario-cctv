@@ -521,7 +521,7 @@ ${calendario}
   return <main className={`app-shell${editing?.mode === "form" ? " has-editor" : ""}`}>
     <datalist id="operators">{operatorOptions.map(name => <option key={name} value={name} />)}</datalist>
     <header className="toolbar">
-      <div className="brand"><span className="brand-mark"><CalendarDays size={23} /></span><div><p>Congress Rental · CCTV</p><h1>Agenda operativa</h1></div></div>
+      <div className="brand"><img className="brand-logo" src="/congress-rental-logo.jpg" alt="Congress Rental" width={44} height={44} /><div><p>Congress Rental · CCTV</p><h1>Agenda operativa</h1></div></div>
       <div className="toolbar-actions">
         <div className="segmented" role="group" aria-label="Vista">
           <button type="button" aria-pressed={view === "calendar"} className={view === "calendar" ? "active" : ""} onClick={() => changeView("calendar")}><CalendarDays size={17} />Calendario</button>

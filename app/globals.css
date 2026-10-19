@@ -60,7 +60,7 @@ svg { flex-shrink: 0; }
 .app-shell { min-height: 100dvh; padding: 0 20px 20px; width: 100%; min-width: 0; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; justify-content: space-between; background: var(--header); color: #fff; padding: 12px 20px; margin: 0 -20px; border-top: 3px solid var(--accent); }
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.brand-mark { display: flex; background: var(--accent); color: #fff; padding: 10px; border-radius: 5px; }
+.brand-logo { display: block; flex-shrink: 0; object-fit: contain; background: #fff; }
 .brand p { font-size: 11px; color: #c6c6c6; margin-bottom: 3px; }
 .brand h1 { font-size: 19px; line-height: 1.2; overflow-wrap: anywhere; }
 .toolbar-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -191,7 +191,6 @@ th.pinned { z-index: 4; }
 .login-shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at top, color-mix(in srgb, var(--accent) 14%, transparent), transparent 34%), var(--background); }
 .login-card { width: min(100%, 420px); display: grid; gap: 18px; padding: 24px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: 0 18px 50px rgba(0, 0, 0, .14); }
 .login-brand { display: flex; align-items: center; gap: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
-.login-brand span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 6px; background: var(--accent); color: #fff; }
 .login-brand p { margin: 0 0 2px; color: var(--ink-soft); font-size: 13px; font-weight: 700; text-transform: uppercase; }
 .login-brand h1 { margin: 0; font-size: 24px; }
 .login-card label { display: grid; gap: 8px; font-weight: 700; }
@@ -286,7 +285,6 @@ th.pinned { z-index: 4; }
 @media (max-width: 480px) {
   .event-overview-list { grid-template-columns: minmax(0, 1fr); }
   .brand h1 { font-size: 21px; }
-  .brand-mark { padding: 8px; }
   .toolbar-actions { width: 100%; }
   .toolbar-actions > .primary { flex-grow: 1; }
   .segmented button { padding-left: 8px; padding-right: 8px; }

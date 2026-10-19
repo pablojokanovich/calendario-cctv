@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { CalendarDays, LockKeyhole } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -34,7 +34,7 @@ export default function LoginPage() {
 
   return <main className="login-shell">
     <form className="login-card" onSubmit={submit}>
-      <div className="login-brand"><span><CalendarDays size={24} /></span><div><p>Congress Rental</p><h1>Agenda CCTV</h1></div></div>
+      <div className="login-brand"><img className="brand-logo" src="/congress-rental-logo.jpg" alt="Congress Rental" width={48} height={48} /><div><p>Congress Rental</p><h1>Agenda CCTV</h1></div></div>
       <label>Clave de acceso
         <div className="login-input"><LockKeyhole size={18} /><input autoFocus type="password" value={password} onChange={event => setPassword(event.target.value)} /></div>
       </label>
