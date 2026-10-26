@@ -350,7 +350,9 @@ export default function AgendaApp() {
     (event.setupDate >= monthStart && event.setupDate <= monthEnd) ||
     (event.startDate <= monthEnd && event.endDate >= monthStart)
   )).sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate) || a.startDate.localeCompare(b.startDate) || a.orderNumber.localeCompare(b.orderNumber));
-  const sheetEvents = events.filter(event => event.endDate >= todayIso || (editing?.id === event.id && editing.mode === "sheet"));
+  const sheetEvents = events
+    .filter(event => event.endDate >= todayIso || (editing?.id === event.id && editing.mode === "sheet"))
+    .sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate) || a.startDate.localeCompare(b.startDate) || a.orderNumber.localeCompare(b.orderNumber));
   const rows = sheetEvents.flatMap(event => {
     const current = editing?.id === event.id && editing.mode === "sheet" ? { ...editing.data, id: event.id } : event;
     return current.assignments.map(assignment => ({ event: current, assignment }));
