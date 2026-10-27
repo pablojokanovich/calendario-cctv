@@ -14,6 +14,7 @@
   --panel-muted: #edf0f3;
   --weekend-bg: #e3e8ed;
   --weekend-head: #d7e1e8;
+  --today-bg: #fff0f0;
   --accent: #d71920;
   --accent-soft: #fff1f1;
   --header: #050505;
@@ -30,6 +31,7 @@
   --panel-muted: #292e31;
   --weekend-bg: #242a2d;
   --weekend-head: #30383d;
+  --today-bg: #3a2427;
   --accent: #f12a32;
   --accent-soft: #371d20;
   --header: #050505;
@@ -184,6 +186,12 @@ svg { flex-shrink: 0; }
 .day-cell.holiday { background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
 .day-cell.non-working { background: color-mix(in srgb, #dca32f 9%, var(--panel)); }
 .day-cell.holiday.muted, .day-cell.non-working.muted { background: var(--panel-muted); }
+.calendar-grid .day-cell.today { background: var(--today-bg); box-shadow: inset 0 0 0 3px var(--accent); }
+.day-heading { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 30px; margin-bottom: 6px; }
+.day-heading time { margin: 0 0 0 auto; }
+.day-cell.today .day-heading time { width: 30px; height: 30px; font-size: 14px; }
+.today-label { padding: 3px 4px; border-radius: 3px; background: var(--panel); color: var(--accent); font-size: 10px; font-weight: 800; line-height: 1.2; }
+.location-input, .location-text, .calendar-location, .overview-location { text-transform: uppercase; }
 .holiday-label { display: flex; flex-direction: column; gap: 3px; border-left: 2px solid var(--accent); padding: 4px 6px; margin-bottom: 8px; color: var(--accent); font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
 .holiday-label b { font-size: 10px; }
 .non-working .holiday-label { border-color: #a16a13; color: #a16a13; }

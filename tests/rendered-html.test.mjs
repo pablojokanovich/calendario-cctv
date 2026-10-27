@@ -75,6 +75,9 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     const calendarEvent = root().findAllByProps({ className: "event-chip" })[0];
     const textContent = node => typeof node === "string" ? node : node.children.map(textContent).join("");
     const calendarText = textContent(calendarEvent);
+    const todayTime = root().findAllByType("time").find(time => time.props["aria-current"] === "date");
+    assert.equal(todayTime.props.dateTime, today);
+    assert.equal(root().findByProps({ className: "today-label" }).children[0], "HOY");
     const locationBadge = calendarEvent.findByProps({ className: "calendar-location" });
     assert.equal(locationBadge.children[0], "CEC");
     assert.equal(locationBadge.props.style.backgroundColor, "#1d4ed8");

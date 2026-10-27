@@ -7,8 +7,8 @@ export function normalizeSearchText(value: string) {
 const locationColors: Record<string, string> = {
   "cec": "#1d4ed8",
   "sheraton retiro": "#c81e1e",
-  "sheraton greenville": "#15803d",
-  "greenville": "#15803d",
+  "sheraton greenville": "#00a82d",
+  "greenville": "#00a82d",
   "hilton": "#c04b00",
   "ba ferial": "#087eac",
   "rural": "#14532d",

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { crewSummary, newDraft, normalizeEvent, normalizeAssignment, splitOperators, toPayload, validateEvent } from "../lib/agenda.ts";
+import { crewSummary, eventCrewText, eventPlannerLink, newDraft, normalizeEvent, normalizeAssignment, splitOperators, toPayload, validateEvent } from "../lib/agenda.ts";
 
 test("legacy people remain separate and old confirmation applies only to cameras", () => {
   const room = normalizeAssignment({ salon: "LIBERTADOR ABC", director: "Maca", cameras: "Lucas, Esteban", vmix: "Pablo", wp: true });
@@ -8,6 +8,17 @@ test("legacy people remain separate and old confirmation applies only to cameras
   assert.equal(room.crew.director[0].confirmed, false);
   assert.equal(room.crew.vmix[0].confirmed, false);
   assert.deepEqual(splitOperators("2 (Fiore, Guido o Noelia); Cami"), ["2 (Fiore, Guido o Noelia)", "Cami"]);
+});
+
+test("locations default to uppercase when loading, saving and sharing without changing event names", () => {
+  const draft = { ...newDraft(), orderNumber: "0029", eventName: "Congreso Médico", location: "Predio de José" };
+  assert.equal(normalizeEvent(draft).location, "PREDIO DE JOSÉ");
+  assert.equal(toPayload(draft).location, "PREDIO DE JOSÉ");
+  assert.equal(toPayload(draft).eventName, "Congreso Médico");
+  assert.ok(eventCrewText(draft).includes("Lugar: PREDIO DE JOSÉ"));
+  const payload = JSON.parse(new URLSearchParams(new URL(eventPlannerLink(draft)).hash.slice(1)).get("agenda"));
+  assert.equal(payload.ev.lugar, "PREDIO DE JOSÉ");
+  assert.equal(draft.location, "Predio de José", "Formatting must not rewrite the active text input while typing");
 });
 
 test("individual confirmations and stable identities survive a database round trip", () => {

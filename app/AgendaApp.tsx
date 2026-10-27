@@ -166,7 +166,7 @@ function citationPayload(event: EventRecord, selectedAssignment: Assignment) {
     source: "agenda-cctv",
     orderNumber: event.orderNumber,
     eventName: event.eventName,
-    location: event.location,
+    location: event.location.toLocaleUpperCase("es-AR"),
     setupDate: event.setupDate,
     startDate: event.startDate,
     endDate: event.endDate,
@@ -194,7 +194,7 @@ function citationLink(event: EventRecord, assignment: Assignment) {
   const params = new URLSearchParams({
     evento: event.eventName,
     orden: event.orderNumber,
-    lugar: event.location,
+    lugar: event.location.toLocaleUpperCase("es-AR"),
     armado: event.setupDate,
     inicio: firstCitationDate,
     eventoInicio: event.startDate,
@@ -539,7 +539,7 @@ ${calendario}
   }
 
   function sheetField(event: EventRecord, field: keyof Omit<EventDraft, "assignments">, label: string, type = "text") {
-    if (type === "text") return <textarea aria-label={`${label} · ${event.orderNumber}`} rows={2} value={event[field]}
+    if (type === "text") return <textarea className={field === "location" ? "location-input" : undefined} aria-label={`${label} · ${event.orderNumber}`} rows={2} value={event[field]}
       onFocus={() => { beginEdit(event, "sheet"); }}
       onChange={e => changeSheet(event, data => ({ ...data, [field]: e.target.value }))} />;
     return <input aria-label={`${label} · ${event.orderNumber}`} type={type} value={event[field]}
@@ -596,7 +596,7 @@ ${calendario}
 
     {editing?.mode === "form" && draft && <aside className="editor-panel" aria-labelledby="editor-title">
       <div className="editor-header"><div className="ficha-brand"><img src="/congress-rental-logo.jpg" alt="Congress Rental" width={44} height={44} /><div><p>{editing.id === null ? "Nuevo evento" : `Ficha del evento · Orden ${draft.orderNumber}`}</p><h2 id="editor-title">{draft.eventName || "Ficha del evento"}</h2></div></div><IconButton label="Cerrar ficha" disabled={saving || documentBusy} onClick={cancelEdit}><X size={20} /></IconButton></div>
-      <div className="ficha-summary"><span>{draft.location || "Lugar sin completar"}</span><span>Armado: {formatShort(draft.setupDate || draft.startDate)}</span><span>{crewSummary(draft).confirmed} de {crewSummary(draft).total} operadores confirmados</span></div>
+      <div className="ficha-summary"><span className="location-text">{draft.location || "Lugar sin completar"}</span><span>Armado: {formatShort(draft.setupDate || draft.startDate)}</span><span>{crewSummary(draft).confirmed} de {crewSummary(draft).total} operadores confirmados</span></div>
       <div className="ficha-navigation"><div className="ficha-tabs" role="tablist" aria-label="Secciones del evento">{fichaTabs.map(([key, label], index) => <button type="button" role="tab" key={key} id={`ficha-tab-${key}`} aria-selected={fichaTab === key} aria-controls={`ficha-panel-${key}`} tabIndex={fichaTab === key ? 0 : -1} onClick={() => { setFichaTab(key); if (key === "citaciones") setCitationsMounted(true); }} onKeyDown={event => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
         event.preventDefault();
@@ -613,7 +613,7 @@ ${calendario}
         <div className="event-fields">
           <label>Nro. de orden<input required value={draft.orderNumber} onChange={e => changeDraft({ orderNumber: e.target.value })} /></label>
           <label className="wide-field">Evento<input required value={draft.eventName} onChange={e => changeDraft({ eventName: e.target.value })} /></label>
-          <label className="wide-field">Lugar<input required value={draft.location} onChange={e => changeDraft({ location: e.target.value })} /></label>
+          <label className="wide-field">Lugar<input className="location-input" required value={draft.location} onChange={e => changeDraft({ location: e.target.value })} /></label>
           <label>Armado<input type="date" value={draft.setupDate} onChange={e => changeDraft({ setupDate: e.target.value })} /></label>
           <label>Inicio<input type="date" required value={draft.startDate} onChange={e => changeDraft({ startDate: e.target.value })} /></label>
           <label>Fin<input type="date" required value={draft.endDate} onChange={e => changeDraft({ endDate: e.target.value })} /></label>
@@ -668,8 +668,8 @@ ${calendario}
         <section className="calendar-panel" aria-label="Calendario mensual">
         <div className="calendar-inner">
           <div className="weekday-row">{weekdays.map((day, index) => <span key={day} className={index >= 5 ? "weekend-head" : ""}>{day}</span>)}</div>
-          <div className="calendar-grid">{monthDays.map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === dateIso(new Date()) ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
-            <time dateTime={day.iso}>{day.date.getDate()}</time>
+          <div className="calendar-grid">{monthDays.map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
+            <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time></div>
             {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
             {events.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>
               <button type="button" className="event-chip" key={event.id} style={{ background: event.color, color: darkColor(event.color) ? "#fff" : "#111" }} onClick={() => beginEdit(event, "form")}>

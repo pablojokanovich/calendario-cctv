@@ -3,7 +3,7 @@ import test from "node:test";
 import { calendarLocationColor } from "../lib/event-insights.ts";
 
 test("calendar locations use their specific colors regardless of case and spacing", () => {
-  const expected = { CEC: "#1d4ed8", "SHERATON RETIRO": "#c81e1e", "SHERATON GREENVILLE": "#15803d", HILTON: "#c04b00", "BA FERIAL": "#087eac", RURAL: "#14532d" };
+  const expected = { CEC: "#1d4ed8", "SHERATON RETIRO": "#c81e1e", "SHERATON GREENVILLE": "#00a82d", HILTON: "#c04b00", "BA FERIAL": "#087eac", RURAL: "#14532d" };
   for (const [location, color] of Object.entries(expected)) {
     assert.equal(calendarLocationColor(location), color);
     assert.equal(calendarLocationColor(`  ${location.toLowerCase().replaceAll(" ", "   ")}  `), color);
@@ -24,6 +24,6 @@ test("Rural and La Rural share the same dark green badge", () => {
 test("Greenville and Sheraton Greenville share the same green badge", () => {
   for (const location of ["GREENVILLE", "Greenville", "  greenville  "]) {
     assert.equal(calendarLocationColor(location), calendarLocationColor("SHERATON GREENVILLE"));
-    assert.equal(calendarLocationColor(location), "#15803d");
+    assert.equal(calendarLocationColor(location), "#00a82d");
   }
 });

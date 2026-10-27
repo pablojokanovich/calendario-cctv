@@ -68,7 +68,7 @@ export function eventCrewText(event: EventDraft): string {
   const lines = [
     line(event.eventName) || "Evento sin nombre",
     `Orden: ${line(event.orderNumber) || "Sin definir"}`,
-    `Lugar: ${line(event.location) || "Sin definir"}`,
+    `Lugar: ${line(event.location).toLocaleUpperCase("es-AR") || "Sin definir"}`,
     `Armado: ${date(event.setupDate)}`,
     `Evento: ${date(event.startDate)}${event.endDate && event.endDate !== event.startDate ? ` al ${date(event.endDate)}` : ""}`,
   ];
@@ -91,7 +91,7 @@ export function eventPlannerLink(event: EventDraft & { id?: number | null }): st
     source: "agenda-cctv", version: 1,
     eventKey: event.id != null ? `agenda:${event.id}` : `orden:${event.orderNumber.trim()}`,
     ev: {
-      os: event.orderNumber.trim(), evento: event.eventName.trim(), lugar: event.location.trim(),
+      os: event.orderNumber.trim(), evento: event.eventName.trim(), lugar: event.location.trim().toLocaleUpperCase("es-AR"),
       armado: event.setupDate || event.startDate, desarme: event.endDate,
       lider: [...new Set(directors)].join(" / "), notas: eventCrewText(event),
     },
@@ -193,7 +193,7 @@ export function normalizeEvent(input: unknown): EventRecord {
   const assignments = Array.isArray(value.assignments) && value.assignments.length ? value.assignments.map(normalizeAssignment) : [normalizeAssignment({})];
   return {
     id: Number(value.id), orderNumber: string(value.orderNumber), eventName: string(value.eventName),
-    location: string(value.location), setupDate: string(value.setupDate), startDate: string(value.startDate), endDate: string(value.endDate),
+    location: string(value.location).toLocaleUpperCase("es-AR"), setupDate: string(value.setupDate), startDate: string(value.startDate), endDate: string(value.endDate),
     phase: phases.includes(value.phase as EventDraft["phase"]) ? value.phase as EventDraft["phase"] : "EVENTO",
     color: /^#[\da-f]{6}$/i.test(string(value.color)) ? string(value.color) : colors[4], assignments,
   };
