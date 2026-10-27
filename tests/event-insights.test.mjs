@@ -11,6 +11,16 @@ function event(id, setupDate, startDate, endDate, name = "Lucas") {
   return result;
 }
 
+test("operator aliases also match in searches and overlap alerts", () => {
+  const a = event(1, "2026-05-01", "2026-05-02", "2026-05-03", "Cami");
+  const b = event(2, "2026-05-01", "2026-05-02", "2026-05-03", "Camila Diamela");
+  assert.equal(eventMatchesSearch(a, "Camila Diamela"), true);
+  assert.equal(findCrewConflicts([a, b]).length, 1);
+  a.assignments[0].crew.cameras[0].name = "Lucas";
+  b.assignments[0].crew.cameras[0].name = "Lucas Andreu";
+  assert.equal(findCrewConflicts([a, b]).length, 1);
+});
+
 test("search matches all words across event fields, ignores accents and includes historical events", () => {
   const record = event(12, "2025-01-01", "2025-01-02", "2025-01-03", "Rodrigo Sorribes");
   assert.equal(eventMatchesSearch(record, "medico sorRibes libertador"), true);

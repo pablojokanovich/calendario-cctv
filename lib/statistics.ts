@@ -1,5 +1,5 @@
 import { eventDates, operatorWorksOn, type EventRecord } from "./agenda.ts";
-import { locationFilterKey, normalizeSearchText } from "./event-insights.ts";
+import { canonicalOperatorName, locationFilterKey, normalizeSearchText } from "./event-insights.ts";
 
 export type StatisticsRow = { key: string; name: string; events: number; days: number };
 export type StatisticsRange = { from: string; to: string };
@@ -28,10 +28,11 @@ export function buildStatistics(events: EventRecord[], range: StatisticsRange) {
       days.forEach(day => service.days.add(`${event.id}:${day}`));
       services.set(key, service);
       for (const person of Object.values(room.crew).flat()) {
-        const personKey = normalizeSearchText(person.name);
+        const name = canonicalOperatorName(person.name);
+        const personKey = normalizeSearchText(name);
         const workingDays = days.filter(day => operatorWorksOn(person, day));
         if (!personKey || !workingDays.length) continue;
-        const operator = operators.get(personKey) ?? { name: person.name.trim().replace(/\s+/g, " "), events: new Set<number>(), days: new Set<string>() };
+        const operator = operators.get(personKey) ?? { name, events: new Set<number>(), days: new Set<string>() };
         operator.events.add(event.id);
         workingDays.forEach(day => operator.days.add(day));
         operators.set(personKey, operator);

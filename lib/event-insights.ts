@@ -4,6 +4,16 @@ export function normalizeSearchText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-AR").trim().replace(/\s+/g, " ");
 }
 
+const operatorAliases: Record<string, string> = {
+  cami: "Camila Diamela", "camila diamela": "Camila Diamela",
+  lucas: "Lucas Andreu", "lucas andreu": "Lucas Andreu",
+};
+
+export function canonicalOperatorName(name: string): string {
+  const key = normalizeSearchText(name);
+  return Object.hasOwn(operatorAliases, key) ? operatorAliases[key] : name.trim().replace(/\s+/g, " ");
+}
+
 export function locationFilterKey(location: string): string {
   const key = normalizeSearchText(location);
   return key === "la rural" ? "rural" : key === "greenville" ? "sheraton greenville" : key;
@@ -38,7 +48,7 @@ export function eventMatchesSearch(event: EventDraft, query: string) {
   const text = normalizeSearchText([
     event.orderNumber, event.eventName, event.location, event.setupDate, event.startDate, event.endDate,
     ...event.assignments.flatMap(room => [room.salon, room.serviceType, room.vmixType,
-      ...Object.values(room.crew).flatMap(people => people.map(person => person.name))]),
+      ...Object.values(room.crew).flatMap(people => people.flatMap(person => [person.name, canonicalOperatorName(person.name)]))]),
   ].join(" "));
   return normalizeSearchText(query).split(" ").every(term => text.includes(term));
 }
@@ -73,14 +83,15 @@ export function findCrewConflicts(events: EventRecord[]): CrewConflict[] {
       const roomPeople = new Map<string, { name: string; periods: ReturnType<typeof activePeriods> }>();
       const active = activePeriods(event);
       for (const person of Object.values(room.crew).flat()) {
-        const key = normalizeSearchText(person.name);
+        const name = canonicalOperatorName(person.name);
+        const key = normalizeSearchText(name);
         if (!key) continue;
         const periods = person.dates === undefined ? active : person.dates
           .filter(day => active.some(period => period.start <= day && day <= period.end))
           .map(day => ({ start: day, end: day }));
         if (!periods.length) continue;
         const current = roomPeople.get(key);
-        roomPeople.set(key, { name: person.name.trim(), periods: [...(current?.periods ?? []), ...periods] });
+        roomPeople.set(key, { name, periods: [...(current?.periods ?? []), ...periods] });
       }
       for (const [key, person] of roomPeople) {
         const next = {

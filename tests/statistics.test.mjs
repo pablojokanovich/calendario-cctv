@@ -51,3 +51,12 @@ test("statistics normalize accents and spaces but do not combine different servi
   assert.equal(result.operators.find(p => p.key === "jeronimo").events, 2);
   assert.equal(result.services.length, 2);
 });
+
+test("statistics group the operator aliases explicitly confirmed by the user", () => {
+  const a = event(1), b = event(2), c = event(3);
+  a.assignments[0].crew.cameras = [{ id: "a", name: "Cami", confirmed: false }, { id: "b", name: "Lucas", confirmed: true }];
+  b.assignments[0].crew.cameras = [{ id: "c", name: "Camila Diamela", confirmed: true }, { id: "d", name: "Lucas Andreu", confirmed: true }];
+  c.assignments[0].crew.cameras = [{ id: "e", name: "Camila Garcia", confirmed: true }];
+  const result = buildStatistics([a, b, c], { from: "", to: "" });
+  assert.deepEqual(result.operators.map(p => [p.name, p.events]), [["Camila Diamela", 2], ["Lucas Andreu", 2], ["Camila Garcia", 1]]);
+});

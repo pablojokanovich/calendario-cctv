@@ -78,7 +78,7 @@ const localStorageKey = "congress-cctv-agenda-events";
 const themeKey = "congress-cctv-theme";
 const citationsUrl = "/citaciones.html";
 const operatorOptions = [
-  "Lean", "Pablo", "Giuli", "Rodri", "Cami", "Lucas", "Esteban", "Maca", "Paola", "Jero", "Carla",
+  "Lean", "Pablo", "Giuli", "Rodri", "Camila Diamela", "Esteban", "Maca", "Paola", "Jero", "Carla",
   "Fernando Standke", "Rodrigo Sorribes", "Pablo Daniel Nami", "Fiorella Farias", "Macarena Bultri",
   "Leila Desiree Sucari", "Maximiliano Bultri", "Camila Garcia", "Lucas Andreu", "Giuliana Caroli Carou",
   "Carla Vazquez", "Barbara Sotelo", "Esteban Gomez", "Jeronimo Catalano", "Esteban Santamarina",
