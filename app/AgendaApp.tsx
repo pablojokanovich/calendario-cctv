@@ -6,7 +6,6 @@ import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, 
 import { EventDocuments } from "./EventDocuments";
 import { EventShare } from "./EventShare";
 import { calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
-import { createMonthScrollGesture } from "../lib/calendar-scroll";
 import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
@@ -254,7 +253,6 @@ export default function AgendaApp() {
   const formRef = useRef<HTMLFormElement>(null);
   const focusNextForm = useRef(false);
   const calendarRef = useRef<HTMLElement>(null);
-  const calendarAnchor = useRef<{ element: Element; top: number } | null>(null);
   const visibleMonthAnchor = useRef<{ element: Element; top: number } | null>(null);
   const calendarJump = useRef(false);
 
@@ -265,9 +263,6 @@ export default function AgendaApp() {
   }
 
   useLayoutEffect(() => {
-    const anchor = calendarAnchor.current;
-    calendarAnchor.current = null;
-    if (anchor?.element.isConnected) window.scrollBy({ top: anchor.element.getBoundingClientRect().top - anchor.top, behavior: "instant" });
     if (calendarJump.current && calendarRef.current) {
       calendarJump.current = false;
       window.scrollTo({ top: Math.max(0, window.scrollY + calendarRef.current.getBoundingClientRect().top - 90), behavior: "instant" });
@@ -308,9 +303,10 @@ export default function AgendaApp() {
   useEffect(() => {
     const calendar = calendarRef.current;
     if (!calendar || view !== "calendar" || search.trim() || editing || loading) return;
-    const gesture = createMonthScrollGesture();
     let extending = false;
     let frame = 0;
+    let previousY = window.scrollY;
+    let movingDown = false;
     function updateTimeline() {
       frame = 0;
       const sections = Array.from(calendar!.querySelectorAll<HTMLElement>("[data-calendar-month]"));
@@ -322,7 +318,7 @@ export default function AgendaApp() {
           setMonth(date);
         }
       }
-      if (!extending && calendar!.getBoundingClientRect().bottom < window.innerHeight + 350) {
+      if (movingDown && !extending && calendar!.getBoundingClientRect().bottom < window.innerHeight + 350) {
         extending = true;
         setLoadedMonths(current => {
           const last = current[current.length - 1];
@@ -331,50 +327,14 @@ export default function AgendaApp() {
       }
     }
     function scroll() {
+      movingDown = window.scrollY > previousY;
+      previousY = window.scrollY;
       if (!frame) frame = window.requestAnimationFrame(updateTimeline);
     }
-    function move(delta: number, event: WheelEvent | TouchEvent) {
-      if (delta >= 0 || extending) return;
-      const first = calendar!.querySelector("[data-calendar-month]");
-      const result = gesture(delta, !!first && first.getBoundingClientRect().top >= 90, false, performance.now());
-      if (result.consume && event.cancelable) event.preventDefault();
-      if (result.month) {
-        extending = true;
-        calendarAnchor.current = { element: first!, top: first!.getBoundingClientRect().top };
-        setLoadedMonths(current => [new Date(current[0].getFullYear(), current[0].getMonth() - 1, 1), ...current]);
-      }
-    }
-    function wheel(event: WheelEvent) {
-      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
-      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
-      move(event.deltaY * scale, event);
-    }
-    let touch: { x: number; y: number } | null = null;
-    function touchStart(event: TouchEvent) {
-      touch = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
-    }
-    function touchMove(event: TouchEvent) {
-      if (!touch || event.touches.length !== 1) { touch = null; return; }
-      const next = { x: event.touches[0].clientX, y: event.touches[0].clientY };
-      const deltaX = touch.x - next.x, deltaY = touch.y - next.y;
-      touch = next;
-      if (Math.abs(deltaY) > Math.abs(deltaX)) move(deltaY, event);
-    }
-    function touchEnd() { touch = null; }
-    calendar.addEventListener("wheel", wheel, { passive: false });
-    calendar.addEventListener("touchstart", touchStart, { passive: true });
-    calendar.addEventListener("touchmove", touchMove, { passive: false });
-    calendar.addEventListener("touchend", touchEnd);
-    calendar.addEventListener("touchcancel", touchEnd);
     window.addEventListener("scroll", scroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", scroll);
       window.cancelAnimationFrame(frame);
-      calendar.removeEventListener("wheel", wheel);
-      calendar.removeEventListener("touchstart", touchStart);
-      calendar.removeEventListener("touchmove", touchMove);
-      calendar.removeEventListener("touchend", touchEnd);
-      calendar.removeEventListener("touchcancel", touchEnd);
     };
   }, [view, search, editing, loading, loadedMonths, month]);
   useEffect(() => {
