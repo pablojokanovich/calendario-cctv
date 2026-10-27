@@ -502,9 +502,10 @@ th.pinned { z-index: 4; }
 .individual-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
 .individual-layout > section { min-width: 0; }
 .individual-bookings { padding: 0; margin: 16px 0; list-style: none; }
-.individual-bookings li { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 6px 12px; padding: 14px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
-.individual-bookings li > strong, .individual-bookings li > span:not(.phase-badge) { grid-column: 1 / -1; }
-.individual-bookings .phase-badge { justify-self: start; }
+.individual-bookings li { display: grid; gap: 6px; padding: 14px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.individual-days { display: grid; gap: 10px; margin-top: 6px; }
+.individual-day { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 6px 12px; }
+.individual-day > div { display: grid; gap: 4px; }
 .individual-bookings time { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .individual-share textarea { margin: 12px 0; min-height: 350px; line-height: 1.6; }
 .individual-actions { display: flex; flex-wrap: wrap; gap: 8px; }

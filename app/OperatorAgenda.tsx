@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Copy, Download, RotateCcw } from "lucide-react";
 import { dateIso, type EventRecord } from "../lib/agenda";
-import { agendaOperators, operatorAgenda, operatorAgendaText } from "../lib/operator-agenda";
+import { agendaOperators, groupOperatorAgenda, operatorAgenda, operatorAgendaText } from "../lib/operator-agenda";
 
 export function OperatorAgenda({ events, catalogue }: { events: EventRecord[]; catalogue: string[] }) {
   const operators = useMemo(() => agendaOperators(events, catalogue), [events, catalogue]);
@@ -14,6 +14,7 @@ export function OperatorAgenda({ events, catalogue }: { events: EventRecord[]; c
   const [error, setError] = useState("");
   const preview = useRef<HTMLTextAreaElement>(null);
   const bookings = useMemo(() => operatorAgenda(events, name, from, to), [events, name, from, to]);
+  const groupedEvents = useMemo(() => groupOperatorAgenda(bookings), [bookings]);
   const source = operatorAgendaText(name, bookings);
   const text = edited?.source === source ? edited.text : source;
   const invalid = !!(from && to && from > to);
@@ -36,7 +37,7 @@ export function OperatorAgenda({ events, catalogue }: { events: EventRecord[]; c
     {invalid && <p className="error-message" role="alert">La fecha de inicio debe ser anterior o igual a la fecha de fin.</p>}
     {!name ? <p className="statistics-empty">Sin operador seleccionado</p> : !bookings.length ? <p className="statistics-empty">Sin asignaciones en este período</p> : <div className="individual-layout">
       <section aria-label="Asignaciones individuales"><h3>{name} <span className="count">{dayCount} {dayCount === 1 ? "día" : "días"} · {eventCount} {eventCount === 1 ? "evento" : "eventos"}</span></h3>
-        <ol className="individual-bookings">{bookings.map(booking => <li key={`${booking.eventId}-${booking.date}`}><time dateTime={booking.date}>{booking.date.split("-").reverse().join("/")}</time><span className="phase-badge">{booking.setup ? booking.eventDay ? "ARMADO + EVENTO" : "ARMADO" : "EVENTO"}</span><strong>{booking.eventName}</strong><span>#{booking.order} · {booking.location}</span>{booking.rooms.map((room, i) => <span key={i}>{room.name} · {room.roles.join(", ")}</span>)}</li>)}</ol>
+        <ol className="individual-bookings">{groupedEvents.map(event => <li key={event.eventId}><strong>{event.eventName}</strong><span>#{event.order} · {event.location}</span><div className="individual-days">{event.days.map(day => <div className="individual-day" key={day.date}><time dateTime={day.date}>{day.date.split("-").reverse().join("/")}</time><div>{day.rooms.map((room, i) => <span key={i}>{room.name} · {room.roles.join(", ")}</span>)}</div></div>)}</div></li>)}</ol>
       </section>
       <section className="individual-share" aria-label="Texto de la agenda individual"><div className="workspace-heading"><h3>Para compartir</h3><button type="button" className="icon-button" title="Restablecer texto" aria-label="Restablecer agenda individual" onClick={() => { setEdited(null); setCopied(""); }}><RotateCcw size={16} /></button></div>
         <textarea ref={preview} aria-label="Texto para compartir agenda individual" value={text} onChange={event => setEdited({ source, text: event.target.value })} rows={18} />
