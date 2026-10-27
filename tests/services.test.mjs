@@ -4,8 +4,8 @@ import { canonicalServiceName, serviceCategory, serviceOptions } from "../lib/se
 
 test("service aliases group spelling, camera words, component order and capitalization", () => {
   for (const group of [
-    ["CCTV A 1 HD", "cctv a 1 cámara hd"],
-    ["CCTV 2 BROADCAST", "CCTV A 2 BROADCAST", "CCTV A 2 HD (BROADCAST)"],
+    ["CCTV A 1 HD", "cctv a 1 cámara hd", "1 Sony", "CCTV a 1 cámara Sony"],
+    ["CCTV 2 BROADCAST", "CCTV A 2 BROADCAST", "CCTV A 2 HD (BROADCAST)", "2 URSA", "CCTV a 2 cámaras URSA"],
     ["VMIX+3 PTZ", "3 PTZ + VMIX"],
     ["VMIX + 1 PTZ", "1 PTZ + VMIX"],
     ["2 SONY", "CCTV A 2", "CCTV A 2 HD", "CCTV a 2 cámaras Sony", "CCTV a 2 cámaras HD"],
@@ -40,9 +40,18 @@ test("CCTV categories distinguish Broadcast from HD, also with vMix or additiona
   assert.equal(serviceCategory("CCTV A 2 BROADCAST + VMIX"), "CCTV Broadcast + vMix");
   assert.equal(serviceCategory("2 BROADCAST + PTZ"), "CCTV Broadcast");
   assert.equal(serviceCategory("CCTV A 1 HD + 1 PTZ"), "CCTV HD");
-  assert.equal(serviceCategory("2 URSA + PTZ"), "CCTV URSA");
+  assert.equal(serviceCategory("2 URSA + PTZ"), "CCTV Broadcast");
   assert.equal(serviceCategory("CCTV A 1"), "CCTV (tipo sin especificar)");
   assert.equal(serviceCategory("CCTV 1 BROADCAST + CCTV 2 HD"), "CCTV Broadcast + HD");
+});
+
+test("URSA is Broadcast and Sony is HD, retaining mixed types and vMix", () => {
+  assert.equal(serviceCategory("CCTV URSA"), "CCTV Broadcast");
+  assert.equal(serviceCategory("CCTV SONY"), "CCTV HD");
+  assert.equal(serviceCategory("4 URSA (1 GRUA) + 2 PTZ"), "CCTV Broadcast");
+  assert.equal(serviceCategory("CCTV URSA + VMIX"), "CCTV Broadcast + vMix");
+  assert.equal(serviceCategory("CCTV SONY + VMIX"), "CCTV HD + vMix");
+  assert.equal(serviceCategory("1 URSA + 1 SONY"), "CCTV Broadcast + HD");
 });
 
 test("an unnumbered PTZ means one PTZ, alone or within a combined service", () => {
