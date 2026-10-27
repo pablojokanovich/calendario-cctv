@@ -74,6 +74,10 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
   try {
     await click("Estadísticas");
     assert.ok(root().findByProps({ "aria-label": "Estadísticas de la agenda" }));
+    const grouping = root().findByProps({ "aria-label": "Agrupar servicios" });
+    assert.equal(grouping.props.value, "category");
+    await act(async () => grouping.props.onChange({ target: { value: "configuration" } }));
+    assert.equal(root().findByProps({ "aria-label": "Agrupar servicios" }).props.value, "configuration");
     const period = root().findByProps({ "aria-label": "Período de estadísticas" });
     await act(async () => period.props.onChange({ target: { value: "custom" } }));
     await act(async () => input("Estadísticas desde").props.onChange({ target: { value: "2099-01-01" } }));

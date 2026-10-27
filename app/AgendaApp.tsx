@@ -6,6 +6,7 @@ import { CalendarDays, Table2, BarChart3, ChevronLeft, ChevronRight, Download, P
 import { EventDocuments } from "./EventDocuments";
 import { EventShare } from "./EventShare";
 import { Statistics } from "./Statistics";
+import { canonicalServiceName, serviceOptions } from "../lib/services";
 import { canonicalOperatorName, calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
@@ -82,7 +83,7 @@ const operatorOptions = [...new Set([
   "Fernando Standke", "Rodrigo Sorribes", "Pablo Daniel Nami", "Fiorella Farias", "Macarena Bultri",
   "Leila Desiree Sucari", "Maximiliano Bultri", "Camila Garcia", "Lucas Andreu", "Giuliana Caroli Carou",
   "Carla Vazquez", "Barbara Sotelo", "Esteban Gomez", "Jeronimo Catalano", "Esteban Santamarina",
-  "Sofia Bocanera", "Noelia Arvallo", "Guido Montini",
+  "Noelia Arvallo", "Guido Montini",
 ].map(canonicalOperatorName))];
 const sheetColumnWidths = [76, 130, 110, 98, 98, 98, 120, 150, 165, 185, 145, 150, 115, 112, 96, 164];
 const weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -617,7 +618,8 @@ ${calendario}
   function assignmentField(event: EventRecord, assignment: Assignment, field: "salon" | "serviceType" | "vmixType", label: string) {
     return <textarea aria-label={`${label} · ${event.orderNumber}`} rows={2} value={assignment[field]}
       onFocus={() => { beginEdit(event, "sheet"); }}
-      onChange={e => changeSheetAssignment(event, assignment.id, { [field]: e.target.value })} />;
+      onChange={e => changeSheetAssignment(event, assignment.id, { [field]: e.target.value })}
+      onBlur={field === "serviceType" ? e => { const value = canonicalServiceName(e.target.value); if (value !== e.target.value) changeSheetAssignment(event, assignment.id, { serviceType: value }); } : undefined} />;
   }
   const draft = editing?.data;
   function conflictList(items: typeof conflicts) {
@@ -631,6 +633,7 @@ ${calendario}
 
   return <main className={`app-shell${view === "calendar" && !search.trim() ? " calendar-view" : ""}${editing?.mode === "form" ? " has-editor" : ""}`}>
     <datalist id="operators">{operatorOptions.map(name => <option key={name} value={name} />)}</datalist>
+    <datalist id="services">{serviceOptions.map(name => <option key={name} value={name} />)}</datalist>
     <header className="toolbar">
       <div className="brand"><img className="brand-logo" src="/congress-rental-logo.jpg" alt="Congress Rental" width={44} height={44} /><div><p>Congress Rental · CCTV</p><h1>Agenda operativa</h1></div></div>
       <div className="toolbar-actions">
@@ -703,7 +706,7 @@ ${calendario}
         {draft.assignments.map((assignment, index) => <div className="assignment-editor" key={assignment.id}>
           <div className="room-fields">
             <label>Sala {index + 1}<input placeholder="Nombre de sala (opcional)" value={assignment.salon} onChange={e => changeAssignment(assignment.id, { salon: e.target.value })} /></label>
-            <label>Tipo de servicio<input value={assignment.serviceType} onChange={e => changeAssignment(assignment.id, { serviceType: e.target.value })} /></label>
+            <label>Tipo de servicio<input list="services" value={assignment.serviceType} onChange={e => changeAssignment(assignment.id, { serviceType: e.target.value })} onBlur={e => { const value = canonicalServiceName(e.target.value); if (value !== e.target.value) changeAssignment(assignment.id, { serviceType: value }); }} /></label>
             <label>Tipo de vMix<input value={assignment.vmixType} onChange={e => changeAssignment(assignment.id, { vmixType: e.target.value })} /></label>
             <label>Estado<select value={assignment.status} onChange={e => changeAssignment(assignment.id, { status: e.target.value })}>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
             <IconButton label={`Quitar sala ${index + 1}`} disabled={draft.assignments.length === 1} onClick={() => changeDraft({ assignments: draft.assignments.filter(a => a.id !== assignment.id) })}><Trash2 size={17} /></IconButton>

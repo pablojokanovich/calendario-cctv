@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import { dateIso, type EventRecord } from "../lib/agenda";
-import { buildStatistics, type StatisticsRow } from "../lib/statistics";
+import { buildStatistics, type ServiceGrouping, type StatisticsRow } from "../lib/statistics";
 
 function Ranking({ title, rows, color, operator = false }: { title: string; rows: StatisticsRow[]; color: string; operator?: boolean }) {
   const max = Math.max(1, ...rows.map(row => row.events));
@@ -19,16 +19,17 @@ export function Statistics({ events, loading }: { events: EventRecord[]; loading
   const [period, setPeriod] = useState("year");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [serviceGrouping, setServiceGrouping] = useState<ServiceGrouping>("category");
   const now = new Date();
   const year = now.getFullYear();
   const range = period === "year" ? { from: `${year}-01-01`, to: `${year}-12-31` }
     : period === "month" ? { from: dateIso(new Date(year, now.getMonth(), 1)), to: dateIso(new Date(year, now.getMonth() + 1, 0)) }
     : period === "custom" ? { from, to } : { from: "", to: "" };
-  const data = useMemo(() => buildStatistics(events, { from: range.from, to: range.to }), [events, range.from, range.to]);
+  const data = useMemo(() => buildStatistics(events, { from: range.from, to: range.to }, serviceGrouping), [events, range.from, range.to, serviceGrouping]);
   return <section className="statistics" aria-label="Estadísticas de la agenda" aria-busy={loading}>
     <div className="statistics-controls"><label>Período<select aria-label="Período de estadísticas" value={period} onChange={event => setPeriod(event.target.value)}>
       <option value="year">Este año ({year})</option><option value="month">Este mes</option><option value="all">Todo el historial</option><option value="custom">Personalizado</option>
-    </select></label>{period === "custom" && <><label>Desde<input type="date" aria-label="Estadísticas desde" value={from} onChange={event => setFrom(event.target.value)} /></label><label>Hasta<input type="date" aria-label="Estadísticas hasta" value={to} onChange={event => setTo(event.target.value)} /></label></>}</div>
+    </select></label>{period === "custom" && <><label>Desde<input type="date" aria-label="Estadísticas desde" value={from} onChange={event => setFrom(event.target.value)} /></label><label>Hasta<input type="date" aria-label="Estadísticas hasta" value={to} onChange={event => setTo(event.target.value)} /></label></>}<label>Agrupar servicios<select aria-label="Agrupar servicios" value={serviceGrouping} onChange={event => setServiceGrouping(event.target.value as ServiceGrouping)}><option value="category">Por categoría</option><option value="configuration">Por configuración</option></select></label></div>
     {data.invalidRange && <p className="error-message" role="alert">La fecha de inicio debe ser anterior o igual a la fecha de fin.</p>}
     {loading ? <p role="status" className="statistics-empty">Cargando estadísticas...</p> : <>
       <dl className="statistics-totals"><div><dt>Eventos</dt><dd>{data.eventCount}</dd></div><div><dt>Jornadas de evento</dt><dd>{data.eventDays}</dd></div><div><dt>Freelancers asignados</dt><dd>{data.operators.length}</dd></div><div><dt>Locaciones</dt><dd>{data.locations.length}</dd></div></dl>

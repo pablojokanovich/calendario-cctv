@@ -75,3 +75,20 @@ test("statistics exclude internal staff aliases only from operator totals, retai
   assert.equal(result.services[0].events, 1);
   assert.deepEqual(data, before);
 });
+
+test("service statistics group categories or equivalent configurations without duplicating multi-room events", () => {
+  const a = event(1), b = event(2);
+  a.assignments[0].serviceType = "3 PTZ + VMIX";
+  a.assignments.push(normalizeAssignment({ salon: "B", serviceType: "VMIX + 3 PTZ" }));
+  b.assignments[0].serviceType = "VMIX + 1 PTZ";
+  const before = structuredClone([a, b]);
+  const configurations = buildStatistics([a, b], { from: "", to: "" }, "configuration");
+  assert.equal(configurations.services.length, 2);
+  assert.equal(configurations.services.find(row => row.name === "vMix + 3 PTZ").events, 1);
+  const categories = buildStatistics([a, b], { from: "", to: "" }, "category");
+  assert.equal(categories.services.length, 1);
+  assert.equal(categories.services[0].name, "PTZ + vMix");
+  assert.equal(categories.services[0].events, 2);
+  assert.equal(categories.services[0].days, 6);
+  assert.deepEqual([a, b], before);
+});

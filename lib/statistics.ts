@@ -1,12 +1,14 @@
 import { eventDates, operatorWorksOn, type EventRecord } from "./agenda.ts";
 import { canonicalOperatorName, locationFilterKey, normalizeSearchText } from "./event-insights.ts";
+import { canonicalServiceName, serviceCategory } from "./services.ts";
 
 export type StatisticsRow = { key: string; name: string; events: number; days: number };
 export type StatisticsRange = { from: string; to: string };
+export type ServiceGrouping = "configuration" | "category";
 
 const internalStaff = new Set(["pablo jokanovich", "leandro martinez"]);
 
-export function buildStatistics(events: EventRecord[], range: StatisticsRange) {
+export function buildStatistics(events: EventRecord[], range: StatisticsRange, serviceGrouping: ServiceGrouping = "configuration") {
   const operators = new Map<string, { name: string; events: Set<number>; days: Set<string> }>();
   const locations = new Map<string, { name: string; events: Set<number>; days: Set<string> }>();
   const services = new Map<string, { name: string; events: Set<number>; days: Set<string> }>();
@@ -24,8 +26,9 @@ export function buildStatistics(events: EventRecord[], range: StatisticsRange) {
     days.forEach(day => location.days.add(`${event.id}:${day}`));
     locations.set(locationKey, location);
     for (const room of event.assignments) {
-      const key = normalizeSearchText(room.serviceType) || "sin especificar";
-      const service = services.get(key) ?? { name: room.serviceType.trim().replace(/\s+/g, " ").toLocaleUpperCase("es-AR") || "Sin especificar", events: new Set<number>(), days: new Set<string>() };
+      const serviceName = serviceGrouping === "category" ? serviceCategory(room.serviceType) : canonicalServiceName(room.serviceType) || "Sin especificar";
+      const key = normalizeSearchText(serviceName);
+      const service = services.get(key) ?? { name: serviceName, events: new Set<number>(), days: new Set<string>() };
       service.events.add(event.id);
       days.forEach(day => service.days.add(`${event.id}:${day}`));
       services.set(key, service);
