@@ -39,7 +39,9 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     matchMedia: () => ({ matches: false }), addEventListener() {}, removeEventListener() {}, confirm: () => true,
   };
   const today = dateIso(new Date());
-  const fixture = normalizeEvent({ ...newDraft(), id: 7, orderNumber: "0999", eventName: "Congreso", location: "CEC", startDate: today, endDate: today });
+  const nextDate = new Date(`${today}T12:00:00`); nextDate.setDate(nextDate.getDate() + 1);
+  const tomorrow = dateIso(nextDate);
+  const fixture = normalizeEvent({ ...newDraft(), id: 7, orderNumber: "0999", eventName: "Congreso", location: "CEC", startDate: today, endDate: tomorrow });
   fixture.assignments[0].salon = "Sala inicial";
   fixture.assignments[0].crew.cameras = [{ id: "cam-a", name: "Lucas", confirmed: false }, { id: "cam-b", name: "Esteban", confirmed: false }];
   fixture.assignments[0].crew.director = [{ id: "dir-a", name: "Maca", confirmed: false }];
@@ -149,6 +151,35 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     assert.equal(input("Sala · 0999").props.value, "Sala inicial completa");
     assert.equal(input("Camarógrafos 1").props.value, "Rodri");
     assert.equal(input("Confirmar Camarógrafos 2: Esteban").props.checked, false);
+    await click("Orden de servicio y detalles 0999");
+    await click("Salas y operadores");
+    const panel = () => root().findByProps({ className: "editor-panel" });
+    const field = label => panel().findAll(node => node.type === "input" && node.props["aria-label"] === label)[0];
+    const shortTomorrow = nextDate.toLocaleDateString("es-AR");
+    await act(async () => field(`Camarógrafos 1: Rodri · ${shortTomorrow}`).props.onChange({ target: { checked: false } }));
+    const cameras = panel().findAll(node => node.props.role === "group" && node.props["aria-label"] === "Camarógrafos")[0];
+    await act(async () => cameras.findByProps({ className: "add-person" }).props.onClick());
+    await act(async () => field("Camarógrafos 3").props.onChange({ target: { value: "Guido" } }));
+    await act(async () => field("Todos los días de Camarógrafos 3: Guido").props.onChange({ target: { checked: false } }));
+    await act(async () => field(`Camarógrafos 3: Guido · ${shortTomorrow}`).props.onChange({ target: { checked: true } }));
+    await click("Citaciones");
+    const payload = JSON.parse(new URL(panel().findByType("iframe").props.src, "http://test").searchParams.get("payload"));
+    assert.deepEqual(payload.people.find(p => p.name === "Rodri").days, [today]);
+    assert.deepEqual(payload.people.find(p => p.name === "Guido").days, [tomorrow]);
+    assert.deepEqual(payload.activeDates, [today, tomorrow]);
+    await act(async () => panel().findByType("form").props.onSubmit({ preventDefault() {} }));
+    assert.deepEqual(saved.assignments[0].crew.cameras[0].dates, [today]);
+    assert.deepEqual(saved.assignments[0].crew.cameras[2].dates, [tomorrow]);
+    await click("Cerrar ficha");
+    await click("Calendario");
+    const dayText = day => {
+      const cell = root().findAllByType("article").find(article => article.findAllByType("time").some(time => time.props.dateTime === day));
+      return textContent(cell);
+    };
+    assert.ok(dayText(today).includes("Rodri"));
+    assert.ok(!dayText(today).includes("Guido"));
+    assert.ok(dayText(tomorrow).includes("Guido"));
+    assert.ok(!dayText(tomorrow).includes("Rodri"));
   } finally {
     await act(async () => renderer.unmount());
   }

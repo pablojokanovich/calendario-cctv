@@ -24,20 +24,39 @@ function activePeriods(event: EventDraft) {
   return periods.filter(period => period.start && period.end && period.start <= period.end);
 }
 
+function mergePeriods(periods: { start: string; end: string }[]) {
+  const merged: { start: string; end: string }[] = [];
+  for (const period of periods.sort((a, b) => a.start.localeCompare(b.start))) {
+    const last = merged[merged.length - 1];
+    if (last && new Date(`${period.start}T12:00:00Z`).getTime() <= new Date(`${last.end}T12:00:00Z`).getTime() + 86400000) {
+      if (period.end > last.end) last.end = period.end;
+    } else merged.push({ ...period });
+  }
+  return merged;
+}
+
 export function findCrewConflicts(events: EventRecord[]): CrewConflict[] {
   const bookings = new Map<string, { name: string; booking: Booking; periods: ReturnType<typeof activePeriods> }[]>();
   const conflicts: CrewConflict[] = [];
   for (const event of events) {
     for (const room of event.assignments) {
-      const seen = new Set<string>();
+      const roomPeople = new Map<string, { name: string; periods: ReturnType<typeof activePeriods> }>();
+      const active = activePeriods(event);
       for (const person of Object.values(room.crew).flat()) {
         const key = normalizeSearchText(person.name);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
+        if (!key) continue;
+        const periods = person.dates === undefined ? active : person.dates
+          .filter(day => active.some(period => period.start <= day && day <= period.end))
+          .map(day => ({ start: day, end: day }));
+        if (!periods.length) continue;
+        const current = roomPeople.get(key);
+        roomPeople.set(key, { name: person.name.trim(), periods: [...(current?.periods ?? []), ...periods] });
+      }
+      for (const [key, person] of roomPeople) {
         const next = {
-          name: person.name.trim(),
+          name: person.name,
           booking: { eventId: event.id, eventName: event.eventName, orderNumber: event.orderNumber, roomId: room.id, salon: room.salon },
-          periods: activePeriods(event),
+          periods: mergePeriods(person.periods),
         };
         const previous = bookings.get(key) || [];
         for (const other of previous) {

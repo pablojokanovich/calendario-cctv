@@ -6,7 +6,7 @@ import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, 
 import { EventDocuments } from "./EventDocuments";
 import { EventWorkspace, type WorkspaceHandle } from "./EventWorkspace";
 import { eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
-import { colors, crewSummary, eventCrewText, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
+import { colors, crewSummary, eventCrewText, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 function EventShare({ event }: { event: EventDraft }) {
   const text = eventCrewText(event);
@@ -118,15 +118,16 @@ function IconButton({ label, children, ...props }: { label: string; children: Re
   return <button type="button" className="icon-button" title={label} aria-label={label} {...props}>{children}</button>;
 }
 
-function CrewEditor({ role, people, onChange, onFocus, compact = false }: {
-  role: Role; people: Operator[]; onChange: (people: Operator[]) => void; onFocus?: () => void; compact?: boolean;
+function CrewEditor({ event, role, people, onChange, onFocus, compact = false }: {
+  event: EventDraft; role: Role; people: Operator[]; onChange: (people: Operator[]) => void; onFocus?: () => void; compact?: boolean;
 }) {
+  const days = eventDates(event);
   function update(id: string, patch: Partial<Operator>) {
     onChange(people.map(person => person.id === id ? { ...person, ...patch } : person));
   }
   return <div className={compact ? "crew-editor compact" : "crew-editor"} role="group" aria-label={roleLabels[role]}>
     {!compact && <div className="crew-heading"><span>{roleLabels[role]}</span><span className="confirmation-label">Confirmado</span></div>}
-    {people.map((person, index) => <div className="person-row" key={person.id}>
+    {people.map((person, index) => <div className="person-assignment" key={person.id}><div className="person-row">
       {compact ? <textarea aria-label={`${roleLabels[role]} ${index + 1}`} placeholder="Nombre" rows={2} value={person.name}
         onFocus={onFocus} onChange={e => update(person.id, { name: e.target.value, confirmed: false })} /> :
         <input aria-label={`${roleLabels[role]} ${index + 1}`} placeholder="Nombre" list="operators" value={person.name}
@@ -136,6 +137,18 @@ function CrewEditor({ role, people, onChange, onFocus, compact = false }: {
         disabled={!person.name.trim()} checked={person.confirmed}
         onChange={e => update(person.id, { confirmed: e.target.checked })} />
       <IconButton label={`Quitar ${roleLabels[role]} ${index + 1}`} onClick={() => onChange(people.filter(p => p.id !== person.id))}><X size={14} /></IconButton>
+    </div>
+      {person.name.trim() && <details className={`operator-days ${person.dates !== undefined ? "custom-days" : ""}`}>
+        <summary aria-label={`Días de ${roleLabels[role]} ${index + 1}: ${person.name}`}><CalendarDays size={13} /><span>{person.dates === undefined ? "Todos los días" : `${days.filter(day => operatorWorksOn(person, day)).length}/${days.length} días`}</span></summary>
+        <div className="operator-days-options">
+          <label><input type="checkbox" aria-label={`Todos los días de ${roleLabels[role]} ${index + 1}: ${person.name}`} checked={days.length > 0 && days.every(day => operatorWorksOn(person, day))} disabled={!days.length}
+            onChange={e => update(person.id, { dates: e.target.checked ? undefined : [] })} />Todos los días</label>
+          {days.map(day => <label key={day}><input type="checkbox" aria-label={`${roleLabels[role]} ${index + 1}: ${person.name} · ${formatShort(day)}`} checked={operatorWorksOn(person, day)}
+            onChange={e => update(person.id, { dates: e.target.checked ? [...new Set([...(person.dates ?? days), day])].sort() : (person.dates ?? days).filter(date => date !== day) })} />
+            <span>{formatShort(day)}<small>{phaseFor(event, day)}</small></span></label>)}
+          {!days.length && <span>Sin fechas definidas</span>}
+        </div>
+      </details>}
     </div>)}
     <button type="button" className="add-person" onClick={() => onChange([...people, newOperator()])}><Plus size={14} />{compact ? "Operador" : "Agregar operador"}</button>
   </div>;
@@ -158,18 +171,20 @@ function phaseFor(event: EventDraft, day: string) {
   return setup && live ? "ARMADO / EVENTO" : setup ? "ARMADO" : "EVENTO";
 }
 function citationPayload(event: EventRecord, selectedAssignment: Assignment) {
-  const people = new Map<string, { name: string; role: string; salon: string; confirmed: boolean }>();
+  const people = new Map<string, { name: string; role: string; salon: string; confirmed: boolean; days: string[] }>();
   event.assignments.forEach(assignment => {
     roles.forEach(role => assignment.crew[role].forEach(person => {
       const name = person.name.trim();
-      if (!name) return;
+      const days = operatorDates(event, person);
+      if (!name || !days.length) return;
       const key = name.toLocaleLowerCase("es-AR");
       const current = people.get(key);
       people.set(key, {
         name,
         role: current?.role || roleLabels[role],
         salon: [current?.salon, assignment.salon].filter(Boolean).join(current?.salon && assignment.salon ? " / " : ""),
-        confirmed: Boolean(current?.confirmed || person.confirmed),
+        confirmed: current ? current.confirmed && person.confirmed : person.confirmed,
+        days: [...new Set([...(current?.days ?? []), ...days])].sort(),
       });
     }));
   });
@@ -181,6 +196,7 @@ function citationPayload(event: EventRecord, selectedAssignment: Assignment) {
     setupDate: event.setupDate,
     startDate: event.startDate,
     endDate: event.endDate,
+    activeDates: eventDates(event),
     selectedAssignmentId: selectedAssignment.id,
     selectedSalon: selectedAssignment.salon,
     selectedService: selectedAssignment.serviceType,
@@ -193,6 +209,7 @@ function citationPayload(event: EventRecord, selectedAssignment: Assignment) {
         name: person.name.trim(),
         role: roleLabels[role],
         confirmed: person.confirmed,
+        days: operatorDates(event, person),
       }))),
     })),
     people: [...people.values()],
@@ -511,7 +528,7 @@ export default function AgendaApp() {
     const header = ["Nro de Orden", "Evento", "Lugar", "Armado", "Inicio", "Fin", "Sala", "Tipo de Servicio CCTV", "Director", "Director confirmado", "Camarógrafos", "Camarógrafos confirmados", "Volante", "Volante confirmado", "vMix", "vMix confirmado", "Tipo de vMix", "Estado"];
     const sheetRows = events.flatMap(event => event.assignments.map(a => [
       event.orderNumber, event.eventName, event.location, formatShort(event.setupDate), formatShort(event.startDate), formatShort(event.endDate), a.salon, a.serviceType,
-      ...roles.flatMap(role => [a.crew[role].map(p => p.name).join("; "), a.crew[role].filter(p => p.name.trim()).map(p => `${p.name}: ${p.confirmed ? "SI" : "NO"}`).join("; ")]),
+      ...roles.flatMap(role => [a.crew[role].filter(p => p.name.trim()).map(p => `${p.name}${p.dates !== undefined ? ` [${operatorDayLabel(event, p)}]` : ""}`).join("; "), a.crew[role].filter(p => p.name.trim() && operatorDates(event, p).length).map(p => `${p.name}: ${p.confirmed ? "SI" : "NO"}`).join("; ")]),
       a.vmixType, a.status,
     ]));
     const usedColors = new Set(events.map(event => event.color));
@@ -644,7 +661,7 @@ ${calendario}
             <label>Estado<select value={assignment.status} onChange={e => changeAssignment(assignment.id, { status: e.target.value })}>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
             <IconButton label={`Quitar sala ${index + 1}`} disabled={draft.assignments.length === 1} onClick={() => changeDraft({ assignments: draft.assignments.filter(a => a.id !== assignment.id) })}><Trash2 size={17} /></IconButton>
           </div>
-          <div className="room-crew">{roles.map(role => <CrewEditor key={role} role={role} people={assignment.crew[role]} onChange={people => changeAssignment(assignment.id, { crew: { ...assignment.crew, [role]: people } })} />)}</div>
+          <div className="room-crew">{roles.map(role => <CrewEditor key={role} event={draft} role={role} people={assignment.crew[role]} onChange={people => changeAssignment(assignment.id, { crew: { ...assignment.crew, [role]: people } })} />)}</div>
         </div>)}
         </section>
         <section className="ficha-panel" role="tabpanel" id="ficha-panel-equipos" aria-labelledby="ficha-tab-equipos" hidden={fichaTab !== "equipos"}><EventWorkspace ref={workspaceRef} key={editing.id ?? "new"} event={{ ...draft, id: editing.id ?? -999999 }} localMode={localMode} onBusyChange={setDocumentBusy} onDirtyChange={setWorkspaceDirty} /></section>
@@ -690,7 +707,7 @@ ${calendario}
                 {event.assignments.map(assignment => <span className="calendar-room" key={assignment.id}>
                   <span className="calendar-room-name">{assignment.salon}</span><span className="calendar-service">{assignment.serviceType}</span>
                   {roles.map(role => {
-                    const people = assignment.crew[role].filter(person => person.name.trim());
+                    const people = assignment.crew[role].filter(person => person.name.trim() && operatorWorksOn(person, day.iso));
                     return people.length > 0 && <span className="calendar-crew" key={role}>
                       <b>{roleLabels[role]}: </b>
                       {people.map((person, index) => <span key={person.id}>
@@ -702,7 +719,7 @@ ${calendario}
                 </span>)}
                 <span className="calendar-badges"><small className="phase-badge">{phaseFor(event, day.iso)}</small>
                   {conflicts.some(conflict => (conflict.left.eventId === event.id || conflict.right.eventId === event.id) && conflict.periods.some(period => period.start <= day.iso && period.end >= day.iso)) && <small className="pending-badge"><AlertTriangle size={10} /> Posible cruce</small>}
-                  {event.assignments.some(a => roles.some(role => a.crew[role].some(person => person.name.trim() && !person.confirmed))) && <small className="pending-badge">Operadores por confirmar</small>}
+                  {event.assignments.some(a => roles.some(role => a.crew[role].some(person => person.name.trim() && operatorWorksOn(person, day.iso) && !person.confirmed))) && <small className="pending-badge">Operadores por confirmar</small>}
                 </span>
               </button>)}
           </article>)}</div>
@@ -722,7 +739,7 @@ ${calendario}
                 <td>{sheetField(event, "endDate", "Fin", "date")}</td>
                 <td>{assignmentField(event, assignment, "salon", "Sala")}</td>
                 <td>{assignmentField(event, assignment, "serviceType", "Servicio")}</td>
-                {roles.map(role => <td key={role}><CrewEditor compact role={role} people={assignment.crew[role]} onFocus={() => { beginEdit(event, "sheet"); }} onChange={people => changeSheetAssignment(event, assignment.id, { crew: { ...assignment.crew, [role]: people } })} /></td>)}
+                {roles.map(role => <td key={role}><CrewEditor compact key={role} event={event} role={role} people={assignment.crew[role]} onFocus={() => { beginEdit(event, "sheet"); }} onChange={people => changeSheetAssignment(event, assignment.id, { crew: { ...assignment.crew, [role]: people } })} /></td>)}
                 <td>{assignmentField(event, assignment, "vmixType", "Tipo de vMix")}</td>
                 <td><select aria-label={`Estado · ${event.orderNumber}`} value={assignment.status} onChange={e => changeSheetAssignment(event, assignment.id, { status: e.target.value })}>{statuses.map(s => <option key={s}>{s}</option>)}</select></td>
                 <td><select aria-label={`Día · ${event.orderNumber}`} value={event.phase} onChange={e => changeSheet(event, data => ({ ...data, phase: e.target.value as EventDraft["phase"] }))}>{phases.map(p => <option key={p}>{p}</option>)}</select></td>

@@ -419,3 +419,13 @@ th.pinned { z-index: 4; }
 .event-share textarea { display: block; width: 100%; max-width: 100%; box-sizing: border-box; margin: 8px 0; font: inherit; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; resize: vertical; }
 .event-share-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .event-share-actions [role="status"] { font-size: 13px; }
+.person-assignment { min-width: 0; margin-bottom: 8px; }
+.operator-days { min-width: 0; font-size: 12px; }
+.operator-days summary { display: flex; align-items: center; gap: 5px; padding: 4px 0; cursor: pointer; color: inherit; opacity: .75; overflow-wrap: anywhere; }
+.operator-days summary svg { flex-shrink: 0; }
+.operator-days.custom-days summary { opacity: 1; font-weight: 600; }
+.operator-days-options { display: grid; gap: 6px; padding: 8px 0; max-height: 240px; overflow-y: auto; }
+.operator-days-options label { display: flex; flex-direction: row; align-items: flex-start; gap: 7px; font-size: 12px; font-weight: 400; min-width: 0; cursor: pointer; }
+.operator-days-options input[type="checkbox"] { flex: 0 0 15px; width: 15px; height: 15px; min-height: 0; margin: 2px 0 0; }
+.operator-days-options span { min-width: 0; overflow-wrap: anywhere; }
+.operator-days-options small { display: block; font-size: 10px; opacity: .75; }

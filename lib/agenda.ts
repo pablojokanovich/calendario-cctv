@@ -1,4 +1,4 @@
-export type Operator = { id: string; name: string; confirmed: boolean };
+export type Operator = { id: string; name: string; confirmed: boolean; dates?: string[] };
 export const roles = ["director", "cameras", "volante", "vmix"] as const;
 export type Role = (typeof roles)[number];
 export const roleLabels: Record<Role, string> = {
@@ -29,6 +29,39 @@ export type EventDraft = {
   assignments: Assignment[];
 };
 export type EventRecord = EventDraft & { id: number };
+
+function validIsoDate(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T12:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+export function eventDates(event: EventDraft): string[] {
+  const dates = new Set<string>();
+  if (validIsoDate(event.setupDate)) dates.add(event.setupDate);
+  if (validIsoDate(event.startDate) && validIsoDate(event.endDate) && event.startDate <= event.endDate) {
+    const end = new Date(`${event.endDate}T12:00:00Z`).getTime();
+    for (let time = new Date(`${event.startDate}T12:00:00Z`).getTime(); time <= end; time += 86400000) {
+      dates.add(new Date(time).toISOString().slice(0, 10));
+    }
+  }
+  return [...dates].sort();
+}
+
+// Missing dates means the general assignment; an empty list means no assigned days.
+export function operatorWorksOn(person: Operator, day: string): boolean {
+  return person.dates === undefined || person.dates.includes(day);
+}
+
+export function operatorDates(event: EventDraft, person: Operator): string[] {
+  return eventDates(event).filter(day => operatorWorksOn(person, day));
+}
+
+export function operatorDayLabel(event: EventDraft, person: Operator): string {
+  if (person.dates === undefined) return "Todos los días";
+  return operatorDates(event, person).map(day => day.split("-").reverse().join("/")).join(", ") || "Sin días asignados";
+}
+
 export function eventCrewText(event: EventDraft): string {
   const line = (value: string) => value.trim().replace(/\s+/g, " ");
   const date = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split("-").reverse().join("/") : "Sin definir";
@@ -44,18 +77,19 @@ export function eventCrewText(event: EventDraft): string {
     if (line(room.serviceType)) lines.push(`Servicio: ${line(room.serviceType)}`);
     for (const role of roles) {
       const people = room.crew[role].filter(person => line(person.name));
-      lines.push(`- ${roleLabels[role]}: ${people.length ? people.map(person => `${line(person.name)} (${person.confirmed ? "confirmado" : "por confirmar"})`).join(", ") : "Sin asignar"}`);
+      lines.push(`- ${roleLabels[role]}: ${people.length ? people.map(person => `${line(person.name)} (${person.confirmed ? "confirmado" : "por confirmar"})${person.dates !== undefined ? ` [${operatorDayLabel(event, person)}]` : ""}`).join(", ") : "Sin asignar"}`);
     }
   }
   return lines.join("\n");
 }
 export function crewSummary(event: EventDraft) {
   const people = new Map<string, boolean>();
+  const days = eventDates(event);
   for (const assignment of event.assignments) {
     for (const role of roles) {
       for (const person of assignment.crew[role]) {
         const name = person.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("es-AR");
-        if (!name) continue;
+        if (!name || !days.some(day => operatorWorksOn(person, day))) continue;
         people.set(name, (people.get(name) ?? true) && person.confirmed);
       }
     }
@@ -99,7 +133,10 @@ export function normalizeAssignment(input: unknown, index = 0): Assignment {
     crew[role] = Array.isArray(rawPeople)
       ? rawPeople.map((person, i) => {
           const p = record(person);
-          return { id: string(p.id) || `${id}-${role}-${i}`, name: string(p.name), confirmed: !!string(p.name).trim() && p.confirmed === true };
+          return {
+            id: string(p.id) || `${id}-${role}-${i}`, name: string(p.name), confirmed: !!string(p.name).trim() && p.confirmed === true,
+            ...(Array.isArray(p.dates) ? { dates: [...new Set(p.dates.filter(validIsoDate))].sort() } : {}),
+          };
         })
       : splitOperators(string(value[role])).map((name, i) => ({
           id: `${id}-${role}-${i}`, name, confirmed: role === "cameras" && value.wp === true,

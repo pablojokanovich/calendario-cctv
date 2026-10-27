@@ -984,7 +984,7 @@
       fl,
       puesto: agendaRoleToPuesto(person.role),
       sala: person.salon || '',
-      days: new Set(days.map(day => day.date))
+      days: new Set(days.filter(day => !Array.isArray(person.days) || person.days.includes(day.date)).map(day => day.date))
     };
   }
 
@@ -1021,6 +1021,11 @@
       fin: payload?.endDate || params.get('fin') || ''
     };
     if (values.armado && values.inicio && values.armado < values.inicio) values.inicio = values.armado;
+    if (Array.isArray(payload?.activeDates) && payload.activeDates.length) {
+      const activeDates = payload.activeDates.slice().sort();
+      values.inicio = activeDates[0];
+      values.fin = activeDates[activeDates.length - 1];
+    }
 
     if (values.evento) document.getElementById('f-evento').value = values.evento;
     if (values.orden) document.getElementById('f-orden').value = values.orden;
@@ -1030,6 +1035,7 @@
 
     if (values.inicio && values.fin) {
       buildDays();
+      if (Array.isArray(payload?.activeDates)) days = days.filter(day => payload.activeDates.includes(day.date));
       applyAgendaDayTypes(values.armado, values.eventoInicio || values.inicio, values.fin);
     }
 
