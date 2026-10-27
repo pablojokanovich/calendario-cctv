@@ -756,7 +756,7 @@ ${calendario}
         <h3 className="calendar-month-title">{monthLabel(value)}</h3>
         <div className="calendar-inner">
           <div className="weekday-row">{weekdays.map((day, index) => <span key={day} className={index >= 5 ? "weekend-head" : ""}>{day}</span>)}</div>
-          <div className="calendar-grid">{daysForMonth(value).map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
+          <div className="calendar-grid">{daysForMonth(value).map(day => day.iso < dateIso(value) ? <div key={day.iso} className="day-cell calendar-empty" aria-hidden="true" /> : <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
             <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time></div>
             {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
             {locationEvents.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>

@@ -83,6 +83,30 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     await act(async () => input("Estadísticas desde").props.onChange({ target: { value: "2099-01-01" } }));
     assert.ok(root().findAllByType("h3").some(node => node.children.includes("No hay eventos en este período")));
     await click("Calendario");
+    function assertCalendarMonth() {
+      const panel = root().findAll(node => node.type === "section" && node.props["data-calendar-month"])[0];
+      const monthStart = panel.props["data-calendar-month"];
+      const first = new Date(`${monthStart}T12:00:00`);
+      const leading = (first.getDay() + 6) % 7;
+      const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
+      const trailing = (7 - ((leading + last.getDate()) % 7)) % 7;
+      const blanks = panel.findAllByProps({ className: "day-cell calendar-empty" });
+      assert.equal(blanks.length, leading);
+      for (const blank of blanks) {
+        assert.equal(blank.props["aria-hidden"], "true");
+        assert.equal(blank.children.length, 0);
+      }
+      const dates = panel.findAllByType("time").map(node => node.props.dateTime);
+      assert.equal(dates[0], monthStart);
+      assert.equal(dates.length, last.getDate() + trailing);
+      assert(dates.every(date => date >= monthStart), "Previous-month days must be empty, not repeated");
+      assert.equal(dates.at(-1), dateIso(new Date(last.getFullYear(), last.getMonth(), last.getDate() + trailing)));
+    }
+    assertCalendarMonth();
+    await click("Mes siguiente");
+    assertCalendarMonth();
+    await click("Mes anterior");
+    assertCalendarMonth();
     const calendarEvent = root().findAllByProps({ className: "event-chip" })[0];
     const textContent = node => typeof node === "string" ? node : node.children.map(textContent).join("");
     const calendarText = textContent(calendarEvent);
