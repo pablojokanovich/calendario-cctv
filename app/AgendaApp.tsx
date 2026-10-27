@@ -2,10 +2,12 @@
 import type { Holiday } from "../lib/holidays";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { CalendarDays, Table2, BarChart3, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, MapPin } from "lucide-react";
+import { CalendarDays, Table2, BarChart3, Users, Archive, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, MapPin } from "lucide-react";
 import { EventDocuments } from "./EventDocuments";
 import { EventShare } from "./EventShare";
 import { Statistics } from "./Statistics";
+import { OperatorAgenda } from "./OperatorAgenda";
+import { BackupPanel } from "./BackupPanel";
 import { canonicalServiceName, serviceOptions } from "../lib/services";
 import { canonicalOperatorName, calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
@@ -233,7 +235,7 @@ function excelStyleId(color: string) {
 export default function AgendaApp() {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [editing, setEditing] = useState<Editing | null>(null);
-  const [view, setView] = useState<"calendar" | "sheet" | "statistics">("calendar");
+  const [view, setView] = useState<"calendar" | "sheet" | "statistics" | "individual">("calendar");
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [loadedMonths, setLoadedMonths] = useState(() => [month]);
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -249,6 +251,7 @@ export default function AgendaApp() {
   const [search, setSearch] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [documentBusy, setDocumentBusy] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
   const [fichaTab, setFichaTab] = useState("datos");
   const [citationsMounted, setCitationsMounted] = useState(false);
   const savingRef = useRef(false);
@@ -641,9 +644,11 @@ ${calendario}
           <button type="button" aria-pressed={view === "calendar"} className={view === "calendar" ? "active" : ""} onClick={() => changeView("calendar")}><CalendarDays size={17} />Calendario</button>
           <button type="button" aria-pressed={view === "sheet"} className={view === "sheet" ? "active" : ""} onClick={() => changeView("sheet")}><Table2 size={17} />Planilla</button>
           <button type="button" aria-pressed={view === "statistics"} className={view === "statistics" ? "active" : ""} onClick={() => changeView("statistics")}><BarChart3 size={17} />Estadísticas</button>
+          <button type="button" aria-pressed={view === "individual"} className={view === "individual" ? "active" : ""} onClick={() => changeView("individual")}><Users size={17} />Agenda individual</button>
         </div>
         <IconButton label={theme === "light" ? "Activar modo oscuro" : "Activar modo claro"} onClick={toggleTheme}>{theme === "light" ? <Moon size={19} /> : <Sun size={19} />}</IconButton>
         <IconButton label="Exportar Excel con planilla y calendario" onClick={exportExcel} disabled={loading}><Download size={19} /></IconButton>
+        <IconButton label="Respaldo completo y restauración" onClick={() => setBackupOpen(true)} disabled={loading || saving || documentBusy || localMode || !!editing?.dirty}><Archive size={19} /></IconButton>
         <button type="button" className="primary" disabled={loading || saving || documentBusy} onClick={() => beginEdit(null, "form")}><Plus size={18} />Nuevo evento</button>
       </div>
     </header>
@@ -653,10 +658,10 @@ ${calendario}
         <h2 aria-live="polite" aria-atomic="true">{monthLabel(month)}</h2>
         <IconButton label="Mes siguiente" onClick={() => jumpToMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
         <button type="button" className="today-button" onClick={() => jumpToMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoy</button>
-      </div> : view === "sheet" ? <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2> : <h2>Estadísticas</h2>}
+      </div> : view === "sheet" ? <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2> : <h2>{view === "individual" ? "Agenda individual" : "Estadísticas"}</h2>}
       <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || documentBusy || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
-    {view !== "statistics" && <div className="search-toolbar"><label className="agenda-search"><Search size={17} /><input type="search" aria-label="Buscar eventos" placeholder="Buscar evento, orden, lugar, sala u operador" value={search} onChange={event => setSearch(event.target.value)} />{search && <IconButton label="Limpiar búsqueda" onClick={() => setSearch("")}><X size={16} /></IconButton>}</label>
+    {(view === "calendar" || view === "sheet") && <div className="search-toolbar"><label className="agenda-search"><Search size={17} /><input type="search" aria-label="Buscar eventos" placeholder="Buscar evento, orden, lugar, sala u operador" value={search} onChange={event => setSearch(event.target.value)} />{search && <IconButton label="Limpiar búsqueda" onClick={() => setSearch("")}><X size={16} /></IconButton>}</label>
       {view === "calendar" && <div className="location-filter"><label><MapPin size={16} /><select aria-label="Filtrar calendario por locación" value={locationFilter} onChange={event => setLocationFilter(event.target.value)}>
         <option value="">Todas las locaciones</option>
         {locationOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -725,7 +730,7 @@ ${calendario}
     {savedNotice && <div className="save-notice" role="status"><Check size={17} />{savedNotice}</div>}
 
     <section className="workspace">
-      {view === "statistics" ? <Statistics events={events} loading={loading} /> : search.trim() ? <section className="search-results" aria-label="Resultados de búsqueda"><h2>Resultados de búsqueda <span className="count">{searchResults.length}</span></h2>
+      {view === "individual" ? <OperatorAgenda events={events} catalogue={operatorOptions} /> : view === "statistics" ? <Statistics events={events} loading={loading} /> : search.trim() ? <section className="search-results" aria-label="Resultados de búsqueda"><h2>Resultados de búsqueda <span className="count">{searchResults.length}</span></h2>
         <ul>{searchResults.map(event => <li key={event.id}><button type="button" className="search-result" style={{ "--event-color": event.color } as CSSProperties} disabled={documentBusy} onClick={() => { if (beginEdit(event, "form")) { const date = parseDate(event.setupDate || event.startDate); jumpToMonth(new Date(date.getFullYear(), date.getMonth(), 1)); } }}>
           <span className="search-result-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span>{event.location}</span><span>{formatShort(event.setupDate || event.startDate)} — {formatShort(event.endDate)}</span><span className="search-result-rooms">{event.assignments.map(room => room.salon).filter(Boolean).join(" · ")}</span>{event.endDate < todayIso && <small>Finalizado</small>}
         </button></li>)}</ul>{!searchResults.length && <p className="empty-state">No se encontraron eventos.</p>}
@@ -809,5 +814,6 @@ ${calendario}
         </fieldset>
       </section>}
     </section>
+    {backupOpen && <BackupPanel theme={theme} catalogue={{ operators: operatorOptions, services: serviceOptions }} onClose={() => setBackupOpen(false)} onBusyChange={setDocumentBusy} onRestored={async () => { setEditing(null); await loadEvents(); }} onTheme={next => { setTheme(next); document.documentElement.dataset.theme = next; try { localStorage.setItem(themeKey, next); } catch {} }} />}
   </main>;
 }

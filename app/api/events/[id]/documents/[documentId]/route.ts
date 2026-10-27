@@ -40,15 +40,26 @@ export async function PUT(request: Request, context: Context) {
     return Response.json({ error: "No se pudo cargar esta parte del PDF. Reintentá." }, { status: 500 });
   }
 }
-export async function POST(_request: Request, context: Context) {
+export async function POST(request: Request, context: Context) {
   try {
+    const body = await request.text();
+    let restore: { uploadedAt?: unknown; expiresAt?: unknown } | undefined;
+    try { restore = body ? (JSON.parse(body) as { restoreDates?: typeof restore }).restoreDates : undefined; }
+    catch { return Response.json({ error: "Los datos de restauración no son válidos." }, { status: 400 }); }
+    let restoredDates: { uploadedAt: string; expiresAt: string } | null = null;
+    if (restore !== undefined) {
+      const uploaded = typeof restore?.uploadedAt === "string" ? Date.parse(restore.uploadedAt) : NaN;
+      const expiry = typeof restore?.expiresAt === "string" ? Date.parse(restore.expiresAt) : NaN;
+      if (!Number.isFinite(uploaded) || !Number.isFinite(expiry) || uploaded > Date.now() || expiry <= Date.now() || expiry <= uploaded || expiry - uploaded > 30 * 86400000) return Response.json({ error: "El vencimiento original del PDF no es válido o ya pasó." }, { status: 400 });
+      restoredDates = { uploadedAt: new Date(uploaded).toISOString(), expiresAt: new Date(expiry).toISOString() };
+    }
     const document = await getDocument(context);
     if (!document) return Response.json({ error: "Carga inexistente o vencida." }, { status: 404 });
     if (document.complete) return Response.json({ document: documentInfo(document) });
     const chunks = await getDb().select({ part: documentChunks.part }).from(documentChunks).where(eq(documentChunks.documentId, document.id)).orderBy(asc(documentChunks.part));
     if (chunks.length !== Math.ceil(document.size / documentChunkBytes) || chunks.some((chunk, index) => chunk.part !== index)) return Response.json({ error: "Faltan partes del PDF. Volvé a cargarlo." }, { status: 400 });
     const uploadedAt = new Date().toISOString();
-    const [saved] = await getDb().update(eventDocuments).set({ complete: true, uploadedAt, expiresAt: documentExpiry(new Date(uploadedAt)) }).where(and(eq(eventDocuments.id, document.id), eq(eventDocuments.complete, false))).returning();
+    const [saved] = await getDb().update(eventDocuments).set({ complete: true, ...(restoredDates ?? { uploadedAt, expiresAt: documentExpiry(new Date(uploadedAt)) }) }).where(and(eq(eventDocuments.id, document.id), eq(eventDocuments.complete, false))).returning();
     if (!saved) return Response.json({ error: "La carga cambió. Actualizá los documentos." }, { status: 409 });
     return Response.json({ document: documentInfo(saved) });
   } catch (error) {

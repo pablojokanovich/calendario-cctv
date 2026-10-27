@@ -52,6 +52,20 @@ agenda.congressrental.com
 
 El dominio se compra aparte. Vercel solo lo conecta al proyecto.
 
+## Agenda individual y respaldo
+
+La vista Agenda individual comparte texto editable o TXT por operador y fechas,
+respetando los dias de asignacion y reemplazos. No incluye nombres de terceros.
+El icono Respaldo descarga un ZIP versionado con agenda.json, todos los eventos,
+equipos locales y PDF vigentes, conservando sus fechas de vencimiento. No incluye
+datos del generador externo, credenciales ni PDF ya eliminados. El catalogo queda
+como referencia; se restauran tema y contactos locales de citaciones, si existen.
+Limite: 200 MB por ZIP y 20 MB de JSON.
+La restauracion valida todo el ZIP y los hashes antes de escribir, agrega faltantes
+por defecto y solo actualiza coincidencias si se selecciona esa opcion y se confirma.
+Antes de actualizar descarga otra copia completa. No elimina otros eventos ni PDF.
+Un error parcial muestra cuantos eventos se guardaron y permite revisar y reintentar.
+
 ## Ficha del evento y documentos
 
 La ficha abre el generador original en `https://planillascctv.vercel.app/` desde

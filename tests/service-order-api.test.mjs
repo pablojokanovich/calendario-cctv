@@ -59,7 +59,7 @@ test("event dossier stores multiple 10 MB PDFs, migrates old files, expires only
     const tooBig = await list.POST(request(endpoint, "POST", JSON.stringify({ name: "big.pdf", size: maxServiceOrderBytes + 1 })), context);
     assert.equal(tooBig.status, 400);
 
-    async function upload(name, content, checkIncomplete = false) {
+    async function upload(name, content, checkIncomplete = false, restoreDates) {
       const started = await list.POST(request(endpoint, "POST", JSON.stringify({ name, size: content.length })), context);
       assert.equal(started.status, 201);
       const id = (await started.json()).document.id;
@@ -73,7 +73,7 @@ test("event dossier stores multiple 10 MB PDFs, migrates old files, expires only
         assert.ok(chunk.length <= 1024 * 1024);
         assert.equal((await file.PUT(request(`${endpoint}?part=${part}`, "PUT", chunk), ctx)).status, 200);
       }
-      const finished = await file.POST(request(endpoint, "POST"), ctx);
+      const finished = await file.POST(request(endpoint, "POST", restoreDates ? JSON.stringify({ restoreDates }) : undefined), ctx);
       assert.equal(finished.status, 200);
       return (await finished.json()).document;
     }
@@ -85,6 +85,13 @@ test("event dossier stores multiple 10 MB PDFs, migrates old files, expires only
     assert.ok(Buffer.from(await downloaded.arrayBuffer()).equals(bytes));
     const small = await upload("Plano.pdf", Buffer.from("%PDF-1.4\n%%EOF"));
     assert.equal((await (await list.GET(request(endpoint), context)).json()).documents.length, 3);
+    const originalDates = { uploadedAt: oldDate, expiresAt: new Date(new Date(oldDate).getTime() + 30 * 86400000).toISOString() };
+    const restored = await upload("Restaurado.pdf", Buffer.from("%PDF-1.4\n%%EOF"), false, originalDates);
+    assert.equal(restored.uploadedAt, originalDates.uploadedAt);
+    assert.equal(restored.expiresAt, originalDates.expiresAt);
+    const invalidDates = { uploadedAt: oldDate, expiresAt: new Date(Date.now() + 60 * 86400000).toISOString() };
+    assert.equal((await file.POST(request(endpoint, "POST", JSON.stringify({ restoreDates: invalidDates })), fileContext(restored.id))).status, 400);
+    await file.DELETE(request(endpoint, "DELETE"), fileContext(restored.id));
     const wrongContext = { params: Promise.resolve({ id: String(other.id), documentId: large.id }) };
     assert.equal((await file.GET(request(endpoint), wrongContext)).status, 404);
     await file.DELETE(request(endpoint, "DELETE"), wrongContext);
