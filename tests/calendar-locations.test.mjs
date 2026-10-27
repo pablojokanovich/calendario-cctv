@@ -20,3 +20,10 @@ test("Rural and La Rural share the same dark green badge", () => {
     assert.equal(calendarLocationColor(location), "#14532d");
   }
 });
+
+test("Greenville and Sheraton Greenville share the same green badge", () => {
+  for (const location of ["GREENVILLE", "Greenville", "  greenville  "]) {
+    assert.equal(calendarLocationColor(location), calendarLocationColor("SHERATON GREENVILLE"));
+    assert.equal(calendarLocationColor(location), "#15803d");
+  }
+});

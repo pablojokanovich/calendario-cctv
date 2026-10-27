@@ -8,6 +8,7 @@ const locationColors: Record<string, string> = {
   "cec": "#1d4ed8",
   "sheraton retiro": "#c81e1e",
   "sheraton greenville": "#15803d",
+  "greenville": "#15803d",
   "hilton": "#c04b00",
   "ba ferial": "#087eac",
   "rural": "#14532d",
