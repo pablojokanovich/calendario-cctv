@@ -17,7 +17,7 @@ test("statistics deduplicate operator events, rooms and working dates, respectin
   const result = buildStatistics([first, event(2)], { from: "", to: "" });
   assert.equal(result.eventCount, 2);
   assert.equal(result.eventDays, 6);
-  assert.deepEqual(result.operators.map(p => [p.name, p.events, p.days]), [["Rodrigo", 2, 2], ["Guido", 2, 1]]);
+  assert.deepEqual(result.operators.map(p => [p.name, p.events, p.days]), [["Rodrigo", 2, 2], ["Guido Montini", 2, 1]]);
   assert.equal(result.services.length, 1);
   assert.equal(result.services[0].events, 2);
   assert.equal(result.services[0].days, 6);
@@ -28,7 +28,7 @@ test("statistics clip actual work dates to the period, not gaps between setup an
   assert.equal(buildStatistics([data], { from: "2026-10-02", to: "2026-10-02" }).eventCount, 0);
   const result = buildStatistics([data], { from: "2026-10-04", to: "2026-10-04" });
   assert.equal(result.eventDays, 1);
-  assert.deepEqual(result.operators.map(p => p.name), ["Guido"]);
+  assert.deepEqual(result.operators.map(p => p.name), ["Guido Montini"]);
   assert.equal(buildStatistics([data], { from: "2027-01-01", to: "" }).eventCount, 0);
   assert.equal(buildStatistics([data], { from: "2026-11-01", to: "2026-10-01" }).invalidRange, true);
 });

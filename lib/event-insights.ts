@@ -7,6 +7,23 @@ export function normalizeSearchText(value: string) {
 const operatorAliases: Record<string, string> = {
   cami: "Camila Diamela", "camila diamela": "Camila Diamela",
   lucas: "Lucas Andreu", "lucas andreu": "Lucas Andreu",
+  giuli: "Giuliana Caroli", giuliana: "Giuliana Caroli", "giuliana caroli": "Giuliana Caroli", "giuliana caroli carou": "Giuliana Caroli",
+  maca: "Macarena Bultri", "macarena bultri": "Macarena Bultri",
+  maxi: "Maximiliano Bultri", "maxi bultri": "Maximiliano Bultri", "maximiliano bultri": "Maximiliano Bultri",
+  fiore: "Fiorella Farias", fiorella: "Fiorella Farias", "fiorella farias": "Fiorella Farias",
+  lean: "Leandro", leandro: "Leandro",
+  pablo: "Pablo Jokanovich", "pablo j.": "Pablo Jokanovich", "pablo j": "Pablo Jokanovich", "pablo joka": "Pablo Jokanovich", "pablo jokanovich": "Pablo Jokanovich",
+  "pablo nami": "Pablo Daniel Nami", "pablo daniel nami": "Pablo Daniel Nami",
+  noe: "Noelia Arvallo", "noelia arvallo": "Noelia Arvallo",
+  hevia: "Franco Hevia", "franco hevia": "Franco Hevia",
+  rodri: "Rodrigo Sorribes", "rodrigo sorribes": "Rodrigo Sorribes",
+  jero: "Jeronimo Catalano", "jeronimo catalano": "Jeronimo Catalano",
+  leila: "Leila Desiree Sucari", "leila sucari": "Leila Desiree Sucari", "leila desiree sucari": "Leila Desiree Sucari",
+  fernando: "Fernando Standke", "fernando standke": "Fernando Standke",
+  barbara: "Barbara Sotelo", "barbara sotelo": "Barbara Sotelo",
+  "esteban g.": "Esteban Gomez", "esteban g": "Esteban Gomez", "esteban gomez": "Esteban Gomez",
+  carla: "Carla Vazquez", "carla vazquez": "Carla Vazquez",
+  guido: "Guido Montini", "guido montini": "Guido Montini",
 };
 
 export function canonicalOperatorName(name: string): string {

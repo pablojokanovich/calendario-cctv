@@ -6,7 +6,7 @@ import { CalendarDays, Table2, BarChart3, ChevronLeft, ChevronRight, Download, P
 import { EventDocuments } from "./EventDocuments";
 import { EventShare } from "./EventShare";
 import { Statistics } from "./Statistics";
-import { calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
+import { canonicalOperatorName, calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
@@ -77,13 +77,13 @@ const sampleEvents = [
 const localStorageKey = "congress-cctv-agenda-events";
 const themeKey = "congress-cctv-theme";
 const citationsUrl = "/citaciones.html";
-const operatorOptions = [
+const operatorOptions = [...new Set([
   "Lean", "Pablo", "Giuli", "Rodri", "Camila Diamela", "Esteban", "Maca", "Paola", "Jero", "Carla",
   "Fernando Standke", "Rodrigo Sorribes", "Pablo Daniel Nami", "Fiorella Farias", "Macarena Bultri",
   "Leila Desiree Sucari", "Maximiliano Bultri", "Camila Garcia", "Lucas Andreu", "Giuliana Caroli Carou",
   "Carla Vazquez", "Barbara Sotelo", "Esteban Gomez", "Jeronimo Catalano", "Esteban Santamarina",
   "Sofia Bocanera", "Noelia Arvallo", "Guido Montini",
-];
+].map(canonicalOperatorName))];
 const sheetColumnWidths = [76, 130, 110, 98, 98, 98, 120, 150, 165, 185, 145, 150, 115, 112, 96, 164];
 const weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const fichaTabs = [["datos", "Datos"], ["salas", "Salas y operadores"], ["citaciones", "Citaciones"], ["documentos", "Documentos"]] as const;

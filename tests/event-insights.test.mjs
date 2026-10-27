@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { newDraft, normalizeEvent, normalizeAssignment } from "../lib/agenda.ts";
-import { eventMatchesSearch, findCrewConflicts } from "../lib/event-insights.ts";
+import { canonicalOperatorName, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights.ts";
 import { maxServiceOrderBytes, validateServiceOrder } from "../lib/service-order.ts";
 
 function event(id, setupDate, startDate, endDate, name = "Lucas") {
@@ -19,6 +19,23 @@ test("operator aliases also match in searches and overlap alerts", () => {
   a.assignments[0].crew.cameras[0].name = "Lucas";
   b.assignments[0].crew.cameras[0].name = "Lucas Andreu";
   assert.equal(findCrewConflicts([a, b]).length, 1);
+});
+
+test("historical operator aliases keep different Pablos and Estebans separate", () => {
+  const groups = [
+    ["Giuliana Caroli", "Giuli", "Giuliana", "Giuliana Caroli Carou"],
+    ["Macarena Bultri", "Maca"], ["Maximiliano Bultri", "Maxi", "Maxi Bultri"],
+    ["Fiorella Farias", "Fiore", "Fiorella"], ["Leandro", "Lean"],
+    ["Pablo Jokanovich", "Pablo", "Pablo J.", "Pablo Joka"],
+    ["Pablo Daniel Nami", "Pablo Nami"], ["Noelia Arvallo", "NOE"], ["Franco Hevia", "Hevia"],
+    ["Leila Desiree Sucari", "Leila", "Leila Sucari"],
+  ];
+  for (const [canonical, ...aliases] of groups) {
+    for (const alias of aliases) assert.equal(canonicalOperatorName(alias), canonical);
+  }
+  for (const unchanged of ["Malen", "Marcelo", "Adro", "Pao", "Esteban", "Esteban Santamarina", "Camila Garcia", "constructor"]) {
+    assert.equal(canonicalOperatorName(unchanged), unchanged);
+  }
 });
 
 test("search matches all words across event fields, ignores accents and includes historical events", () => {
