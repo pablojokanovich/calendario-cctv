@@ -16,6 +16,9 @@ test("operator aliases also match in searches and overlap alerts", () => {
   const b = event(2, "2026-05-01", "2026-05-02", "2026-05-03", "Camila Diamela");
   assert.equal(eventMatchesSearch(a, "Camila Diamela"), true);
   assert.equal(findCrewConflicts([a, b]).length, 1);
+  a.assignments[0].crew.cameras[0].name = "Camila García";
+  assert.equal(eventMatchesSearch(a, "Camila Diamela"), true);
+  assert.equal(findCrewConflicts([a, b]).length, 1);
   a.assignments[0].crew.cameras[0].name = "Lucas";
   b.assignments[0].crew.cameras[0].name = "Lucas Andreu";
   assert.equal(findCrewConflicts([a, b]).length, 1);
@@ -23,6 +26,7 @@ test("operator aliases also match in searches and overlap alerts", () => {
 
 test("historical operator aliases keep different Pablos and Estebans separate", () => {
   const groups = [
+    ["Camila Diamela", "Cami", "Camila Garcia", " CAMILA GARCÍA "],
     ["Giuliana Caroli", "Giuli", "Giuliana", "Giuliana Caroli Carou"],
     ["Macarena Bultri", "Maca"], ["Maximiliano Bultri", "Maxi", "Maxi Bultri"],
     ["Fiorella Farias", "Fiore", "Fiorella"], ["Leandro Martinez", "Lean", "Leandro"],
@@ -34,7 +38,7 @@ test("historical operator aliases keep different Pablos and Estebans separate", 
     for (const alias of aliases) assert.equal(canonicalOperatorName(alias), canonical);
   }
   assert.equal(canonicalOperatorName("Esteban"), "Esteban Santamarina");
-  for (const unchanged of ["Malen", "Marcelo", "Adro", "Pao", "Esteban Santamarina", "Camila Garcia", "constructor"]) {
+  for (const unchanged of ["Malen", "Marcelo", "Adro", "Pao", "Esteban Santamarina", "constructor"]) {
     assert.equal(canonicalOperatorName(unchanged), unchanged);
   }
 });

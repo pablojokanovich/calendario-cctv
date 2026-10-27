@@ -16,9 +16,10 @@ test("individual agendas group aliases, include setup and actual assignments, an
   const bookings = operatorAgenda([event], "Camila Diamela", "2026-11-01", "2026-11-04");
   assert.deepEqual(bookings.map(b => b.date), ["2026-11-01", "2026-11-03"]);
   assert.equal(bookings[1].rooms.length, 2);
+  assert.deepEqual(operatorAgenda([event], "Camila García", "2026-11-01", "2026-11-04"), bookings);
   assert.equal(operatorAgenda([event], "Lucas Andreu", "", "")[0].date, "2026-11-04");
   assert.deepEqual(operatorAgenda([event], "Cami", "2026-11-04", "2026-11-01"), []);
-  const names = agendaOperators([event], ["Cami", "Lucas Andreu", "Pablo"]);
+  const names = agendaOperators([event], ["Cami", "Camila Garcia", "Lucas Andreu", "Pablo"]);
   assert.deepEqual(names, ["Camila Diamela", "Lucas Andreu", "Pablo Jokanovich"]);
   const text = operatorAgendaText("Cami", bookings);
   assert.doesNotMatch(text, /ARMADO|EVENTO/); assert.match(text, /A: Camarógrafos/); assert.match(text, /B: Director/);

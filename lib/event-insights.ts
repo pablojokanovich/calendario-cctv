@@ -5,7 +5,7 @@ export function normalizeSearchText(value: string) {
 }
 
 const operatorAliases: Record<string, string> = {
-  cami: "Camila Diamela", "camila diamela": "Camila Diamela",
+  cami: "Camila Diamela", "camila diamela": "Camila Diamela", "camila garcia": "Camila Diamela",
   lucas: "Lucas Andreu", "lucas andreu": "Lucas Andreu",
   giuli: "Giuliana Caroli", giuliana: "Giuliana Caroli", "giuliana caroli": "Giuliana Caroli", "giuliana caroli carou": "Giuliana Caroli",
   maca: "Macarena Bultri", "macarena bultri": "Macarena Bultri",

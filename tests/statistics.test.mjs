@@ -58,7 +58,7 @@ test("statistics group the operator aliases explicitly confirmed by the user", (
   b.assignments[0].crew.cameras = [{ id: "c", name: "Camila Diamela", confirmed: true }, { id: "d", name: "Lucas Andreu", confirmed: true }];
   c.assignments[0].crew.cameras = [{ id: "e", name: "Camila Garcia", confirmed: true }];
   const result = buildStatistics([a, b, c], { from: "", to: "" });
-  assert.deepEqual(result.operators.map(p => [p.name, p.events]), [["Camila Diamela", 2], ["Lucas Andreu", 2], ["Camila Garcia", 1]]);
+  assert.deepEqual(result.operators.map(p => [p.name, p.events]), [["Camila Diamela", 3], ["Lucas Andreu", 2]]);
 });
 
 test("statistics exclude internal staff aliases only from operator totals, retaining freelancers and event totals", () => {
