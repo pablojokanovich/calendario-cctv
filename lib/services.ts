@@ -2,13 +2,13 @@ import { normalizeSearchText } from "./event-insights.ts";
 
 const definitions: [string, string[]][] = [
   ["CCTV a 1 cámara", ["CCTV A 1"]],
-  ["CCTV a 2 cámaras", ["CCTV A 2", "2 SONY", "CCTV A 2 SONY", "CCTV A 2 CAMARAS SONY", "CCTV A 2 HD", "CCTV A 2 CAMARAS HD"]],
+  ["CCTV a 2 cámaras HD", ["CCTV A 2", "CCTV A 2 CAMARAS", "2 SONY", "CCTV A 2 SONY", "CCTV A 2 CAMARAS SONY", "CCTV A 2 HD"]],
   ["CCTV a 1 cámara HD", ["CCTV A 1 HD", "CCTV A 1 CAMARA HD"]],
   ["CCTV a 2 cámaras Broadcast", ["CCTV 2 BROADCAST", "CCTV A 2 BROADCAST", "2 BROADCAST", "CCTV A 2 HD (BROADCAST)"]],
   ["CCTV a 3 cámaras Broadcast", ["CCTV 3 BROADCAST", "CCTV A 3 BROADCAST", "3 BROADCAST"]],
   ["CCTV a 1 cámara Sony", ["1 SONY", "CCTV A 1 SONY"]],
   ["CCTV a 2 cámaras URSA", ["2 URSA", "CCTV A 2 URSA"]],
-  ["CCTV a 2 cámaras + vMix", ["CCTV A 2 + VMIX", "2 SONY + VMIX", "CCTV A 2 SONY + VMIX", "CCTV A 2 HD + VMIX", "CCTV A 2 CAMARAS HD + VMIX", "CCTV A 2 CAMARAS SONY + VMIX"]],
+  ["CCTV a 2 cámaras HD + vMix", ["CCTV A 2 + VMIX", "CCTV A 2 CAMARAS + VMIX", "2 SONY + VMIX", "CCTV A 2 SONY + VMIX", "CCTV A 2 HD + VMIX", "CCTV A 2 CAMARAS SONY + VMIX"]],
   ["CCTV a 1 cámara HD + vMix", ["CCTV A 1 HD + VMIX", "CCTV A 1 CAMARA HD + VMIX"]],
   ["CCTV a 3 cámaras Broadcast + vMix", ["3 BROADCAST + VMIX", "CCTV A 3 BROADCAST + VMIX"]],
   ["CCTV a 2 cámaras Broadcast + Gimbal", ["CCTV A 2 CAMARAS BROADCAST + GIMBAL"]],
@@ -56,7 +56,13 @@ export function serviceCategory(value: string): string {
   const ptz = /\b\d*ptz\b/.test(text);
   const otherCamera = /\b(broadcast|ursa|sony|gimbal|hd)\b|\ben mano\b/.test(text);
   if (ptz && !otherCamera) return vmix ? "PTZ + vMix" : "PTZ";
-  if (cctv) return vmix ? "CCTV + vMix" : "CCTV";
+  if (cctv) {
+    const broadcast = /\bbroadcast\b/.test(text);
+    const hd = /\bhd\b/.test(text);
+    const type = broadcast && hd ? "Broadcast + HD" : broadcast ? "Broadcast" : hd ? "HD"
+      : /\bursa\b/.test(text) ? "URSA" : /\bsony\b/.test(text) ? "Sony" : "(tipo sin especificar)";
+    return `CCTV ${type}${vmix ? " + vMix" : ""}`;
+  }
   if (ptz) return vmix ? "PTZ + vMix" : "PTZ";
   if (vmix) return "vMix";
   if (/\bskypanel\b/.test(text)) return "Iluminación";

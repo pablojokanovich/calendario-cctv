@@ -98,7 +98,7 @@ test("user-confirmed Sony/HD services and single PTZ purposes count as the same 
   const events = names.map((name, i) => { const data = event(i + 1); data.assignments[0].serviceType = name; return data; });
   const result = buildStatistics(events, { from: "", to: "" }, "configuration");
   assert.equal(result.services.length, 2);
-  assert.equal(result.services.find(row => row.name === "CCTV a 2 cámaras").events, 3);
+  assert.equal(result.services.find(row => row.name === "CCTV a 2 cámaras HD").events, 3);
   assert.equal(result.services.find(row => row.name === "1 PTZ").events, 4);
 });
 
@@ -110,4 +110,17 @@ test("statistics combine implicit and explicit single PTZ quantities without mer
   assert.equal(services.length, 2);
   assert.equal(services.find(row => row.name === "2 BROADCAST + 1 PTZ").events, 2);
   assert.equal(services.find(row => row.name === "2 BROADCAST + 2 PTZ").events, 1);
+});
+
+test("category statistics never combine Broadcast and HD and retain confirmed Sony/HD aliases", () => {
+  const events = ["2 SONY", "CCTV A 2", "CCTV A 2 HD", "CCTV A 2 BROADCAST", "CCTV A 2 HD + VMIX", "3 BROADCAST + VMIX"].map((serviceType, i) => {
+    const data = event(i + 1); data.assignments[0].serviceType = serviceType; return data;
+  });
+  const { services } = buildStatistics(events, { from: "", to: "" }, "category");
+  assert.equal(services.length, 4);
+  assert.equal(services.find(row => row.name === "CCTV HD").events, 3);
+  assert.equal(services.find(row => row.name === "CCTV Broadcast").events, 1);
+  assert.equal(services.find(row => row.name === "CCTV HD + vMix").events, 1);
+  assert.equal(services.find(row => row.name === "CCTV Broadcast + vMix").events, 1);
+  assert(!services.some(row => row.name === "CCTV" || row.name === "CCTV + vMix"));
 });

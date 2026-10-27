@@ -24,11 +24,25 @@ test("configurations retain quantities, camera models, workflows and incomplete 
 });
 
 test("service categories separate mixed setups without guessing unknown equipment", () => {
-  const examples = [["2 SONY", "CCTV"], ["3 BROADCAST + VMIX", "CCTV + vMix"], ["1 PTZ PARA TEAMS", "PTZ"], ["VMIX + 1 PTZ", "PTZ + vMix"], ["GRABACION VMIX", "vMix"], ["CCTV 2 HIBRIDO", "Híbrido"], ["10 Arri Skypanel S30C", "Iluminación"], ["VALIJA HOLLYLAND", "Hollyland"], ["Servicio pendiente", "Otros"], ["", "Sin especificar"]];
+  const examples = [["2 SONY", "CCTV HD"], ["3 BROADCAST + VMIX", "CCTV Broadcast + vMix"], ["1 PTZ PARA TEAMS", "PTZ"], ["VMIX + 1 PTZ", "PTZ + vMix"], ["GRABACION VMIX", "vMix"], ["CCTV 2 HIBRIDO", "Híbrido"], ["10 Arri Skypanel S30C", "Iluminación"], ["VALIJA HOLLYLAND", "Hollyland"], ["Servicio pendiente", "Otros"], ["", "Sin especificar"]];
   for (const [input, expected] of examples) assert.equal(serviceCategory(input), expected);
   assert.equal(serviceCategory("CCTV A 2 PTZ"), serviceCategory("2 PTZ"));
   assert.equal(serviceCategory("CCTV A 2 PTZ + VMIX"), serviceCategory("VMIX + 2 PTZ"));
-  assert.equal(serviceCategory("CCTV A 3 PTZ + 1 EN MANO"), "CCTV");
+  assert.equal(serviceCategory("CCTV A 3 PTZ + 1 EN MANO"), "CCTV (tipo sin especificar)");
+});
+
+test("CCTV categories distinguish Broadcast from HD, also with vMix or additional PTZ", () => {
+  assert.equal(serviceCategory("CCTV A 2 HD"), "CCTV HD");
+  assert.equal(serviceCategory("CCTV A 2"), "CCTV HD");
+  assert.equal(serviceCategory("CCTV A 2 BROADCAST"), "CCTV Broadcast");
+  assert.equal(serviceCategory("CCTV A 2 HD (BROADCAST)"), "CCTV Broadcast");
+  assert.equal(serviceCategory("CCTV A 2 HD + VMIX"), "CCTV HD + vMix");
+  assert.equal(serviceCategory("CCTV A 2 BROADCAST + VMIX"), "CCTV Broadcast + vMix");
+  assert.equal(serviceCategory("2 BROADCAST + PTZ"), "CCTV Broadcast");
+  assert.equal(serviceCategory("CCTV A 1 HD + 1 PTZ"), "CCTV HD");
+  assert.equal(serviceCategory("2 URSA + PTZ"), "CCTV URSA");
+  assert.equal(serviceCategory("CCTV A 1"), "CCTV (tipo sin especificar)");
+  assert.equal(serviceCategory("CCTV 1 BROADCAST + CCTV 2 HD"), "CCTV Broadcast + HD");
 });
 
 test("an unnumbered PTZ means one PTZ, alone or within a combined service", () => {
