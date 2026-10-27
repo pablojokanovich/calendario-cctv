@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, serial, text } from "drizzle-orm/pg-core";
+import { integer, pgTable, serial, text } from "drizzle-orm/pg-core";
 
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),
@@ -14,4 +14,12 @@ export const events = pgTable("events", {
   assignments: text("assignments").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const serviceOrders = pgTable("event_service_orders", {
+  eventId: integer("event_id").primaryKey().references(() => events.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  size: integer("size").notNull(),
+  content: text("content").notNull(),
+  updatedAt: text("updated_at").notNull(),
 });

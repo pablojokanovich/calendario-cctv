@@ -2,7 +2,9 @@
 import type { Holiday } from "../lib/holidays";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink } from "lucide-react";
+import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, Upload } from "lucide-react";
+import { eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
+import { maxServiceOrderBytes, validateServiceOrder, type ServiceOrderInfo } from "../lib/service-order";
 import { colors, crewSummary, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
@@ -109,6 +111,67 @@ function CrewEditor({ role, people, onChange, onFocus, compact = false }: {
     </div>)}
     <button type="button" className="add-person" onClick={() => onChange([...people, newOperator()])}><Plus size={14} />{compact ? "Operador" : "Agregar operador"}</button>
   </div>;
+}
+
+function ServiceOrderEditor({ eventId, localMode, onBusyChange }: { eventId: number | null; localMode: boolean; onBusyChange: (busy: boolean) => void }) {
+  const [document, setDocument] = useState<ServiceOrderInfo | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [retry, setRetry] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const available = !!eventId && eventId > 0 && !localMode;
+  const endpoint = `/api/events/${eventId}/service-order`;
+  useEffect(() => {
+    setFile(null); setDocument(null); setError(""); setNotice("");
+    if (!available) return;
+    const controller = new AbortController();
+    setLoading(true);
+    void fetch(endpoint, { signal: controller.signal }).then(async response => {
+      const data = await response.json() as { document?: ServiceOrderInfo | null; error?: string };
+      if (!response.ok) throw new Error(data.error || "No se pudo cargar el PDF.");
+      if (!controller.signal.aborted) setDocument(data.document || null);
+    }).catch(error => { if (!controller.signal.aborted) setError(error.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [available, endpoint, retry]);
+
+  async function changeDocument(remove = false) {
+    if (busy || !available || (!remove && !file)) return;
+    if (remove && !window.confirm("¿Quitar la orden de servicio de este evento?")) return;
+    setBusy(true); onBusyChange(true); setError(""); setNotice("");
+    try {
+      const body = new FormData();
+      if (!remove && file) {
+        if (file.size > maxServiceOrderBytes) throw new Error("El PDF no puede superar los 3 MB.");
+        const validation = validateServiceOrder(file.name, new Uint8Array(await file.arrayBuffer()));
+        if (validation) throw new Error(validation);
+        body.set("file", file);
+      }
+      const response = await fetch(endpoint, { method: remove ? "DELETE" : "PUT", body: remove ? undefined : body });
+      const data = await response.json().catch(() => null) as { document?: ServiceOrderInfo; error?: string } | null;
+      if (!response.ok || !data) throw new Error(data?.error || "No se pudo guardar el PDF. Intentá nuevamente.");
+      if (!remove && !data.document) throw new Error("No se pudo verificar el guardado del PDF.");
+      setDocument(remove ? null : data.document || null); setFile(null);
+      if (inputRef.current) inputRef.current.value = "";
+      setNotice(remove ? "PDF eliminado" : "PDF guardado");
+    } catch (error) { setError(error instanceof Error ? error.message : "No se pudo guardar el PDF."); }
+    finally { setBusy(false); onBusyChange(false); }
+  }
+  return <section className="service-order-section" aria-label="Orden de servicio">
+    <div className="service-order-heading"><FileText size={18} /><h3>Orden de servicio</h3><span>Opcional · PDF · Hasta 3 MB</span></div>
+    {!available ? <p className="document-note">{localMode ? "Los adjuntos requieren conexión con la agenda compartida." : "Disponible después de guardar el evento."}</p> : <>
+      {loading ? <p className="document-note">Cargando adjunto...</p> : <>
+        {document ? <div className="document-file"><a href={`${endpoint}?download=1`} target="_blank" rel="noreferrer"><FileText size={16} /><span>{document.name}</span><ExternalLink size={14} /></a><button type="button" className="icon-button" title="Quitar PDF" aria-label="Quitar PDF" disabled={busy} onClick={() => void changeDocument(true)}><Trash2 size={16} /></button></div> : <p className="document-note">Sin PDF adjunto</p>}
+        <label className="document-input">Seleccionar orden de servicio (PDF)<input ref={inputRef} type="file" accept="application/pdf,.pdf" disabled={busy} onChange={event => { setFile(event.target.files?.[0] || null); setNotice(""); }} /></label>
+        {file && <button type="button" disabled={busy} onClick={() => void changeDocument()}><Upload size={16} />{busy ? "Subiendo PDF..." : document ? "Reemplazar PDF" : "Subir PDF"}</button>}
+      </>}
+      {notice && <p className="document-note" role="status">{notice}</p>}
+      {error && <div className="document-error" role="alert"><span>{error}</span><button type="button" disabled={busy} onClick={() => setRetry(value => value + 1)}>Recargar adjunto</button></div>}
+    </>}
+  </section>;
 }
 
 function parseDate(value: string) { return new Date(`${value}T12:00:00`); }
@@ -221,6 +284,8 @@ export default function AgendaApp() {
   const [holidays, setHolidays] = useState<Record<string, Holiday>>({});
   const [holidayError, setHolidayError] = useState("");
   const [holidayRetry, setHolidayRetry] = useState(0);
+  const [search, setSearch] = useState("");
+  const [documentBusy, setDocumentBusy] = useState(false);
   const savingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const focusNextForm = useRef(false);
@@ -255,11 +320,11 @@ export default function AgendaApp() {
     document.documentElement.dataset.theme = preferred;
   }, []);
   useEffect(() => {
-    if (!editing?.dirty) return;
+    if (!editing?.dirty && !documentBusy) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [editing?.dirty]);
+  }, [editing?.dirty, documentBusy]);
   useEffect(() => {
     if (editing?.mode === "form" && focusNextForm.current) {
       formRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
@@ -274,14 +339,14 @@ export default function AgendaApp() {
   useEffect(() => {
     if (editing?.mode !== "form") return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !savingRef.current && (!editing.dirty || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"))) {
+      if (event.key === "Escape" && !documentBusy && !savingRef.current && (!editing.dirty || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"))) {
         setEditing(null);
         setError("");
       }
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [editing]);
+  }, [editing, documentBusy]);
 
   useEffect(() => {
     if (!document.modelContext?.registerTool) return;
@@ -344,6 +409,10 @@ export default function AgendaApp() {
   }, [holidayYears, holidayRetry]);
 
   const todayIso = dateIso(new Date());
+  const searchResults = search.trim() ? events.filter(event => eventMatchesSearch(event, search)).sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate)) : [];
+  const insightEvents = editing ? [...events.filter(event => event.id !== editing.id), { ...editing.data, id: editing.id ?? -999999 }] : events;
+  const conflicts = findCrewConflicts(insightEvents).filter(conflict => conflict.periods.some(period => period.end >= todayIso) || conflict.left.eventId === editing?.id || conflict.right.eventId === editing?.id);
+  const editingConflicts = editing ? conflicts.filter(conflict => conflict.left.eventId === (editing.id ?? -999999) || conflict.right.eventId === (editing.id ?? -999999)) : [];
   const monthStart = dateIso(month);
   const monthEnd = dateIso(new Date(month.getFullYear(), month.getMonth() + 1, 0));
   const calendarEvents = events.filter(event => event.endDate >= todayIso && (
@@ -365,7 +434,7 @@ export default function AgendaApp() {
     try { localStorage.setItem(themeKey, next); } catch {}
   }
   function canLeave() {
-    return !savingRef.current && (!editing?.dirty || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"));
+    return !documentBusy && !savingRef.current && (!editing?.dirty || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"));
   }
   function beginEdit(event: EventRecord | null, mode: Editing["mode"]) {
     if (editing?.id === event?.id && editing?.mode === mode) return true;
@@ -391,6 +460,7 @@ export default function AgendaApp() {
     } } : current);
   }
   function changeSheet(event: EventRecord, update: (draft: EventDraft) => EventDraft) {
+    if (documentBusy || savingRef.current) return;
     if (editing?.id !== event.id && !canLeave()) return;
     setError("");
     setEditing(current => ({
@@ -403,7 +473,7 @@ export default function AgendaApp() {
   }
 
   async function save({ keepEditing = false }: { keepEditing?: boolean } = {}) {
-    if (!editing || savingRef.current) return;
+    if (!editing || savingRef.current || documentBusy) return;
     const validation = validateEvent(editing.data);
     if (validation) { setError(validation); return; }
     const snapshot = editing;
@@ -429,7 +499,7 @@ export default function AgendaApp() {
       setMessage(localMode ? "Guardado en este navegador" : "Cambios guardados online");
       setSavedNotice(localMode ? "Guardado en este navegador" : "Cambios guardados");
       setEditing(current => {
-        if (!keepEditing) return null;
+        if (!keepEditing && !(snapshot.id === null && snapshot.mode === "form")) return null;
         if (!current || current.id !== snapshot.id || current.mode !== snapshot.mode) return current;
         if (current !== snapshot) return current;
         const savedData: EventDraft = {
@@ -437,7 +507,7 @@ export default function AgendaApp() {
           setupDate: event.setupDate, startDate: event.startDate, endDate: event.endDate,
           phase: event.phase, color: event.color, assignments: event.assignments,
         };
-        return { ...current, data: savedData, dirty: false };
+        return { ...current, id: event.id, data: savedData, dirty: false };
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar. Tus cambios siguen abiertos.");
@@ -519,6 +589,14 @@ ${calendario}
       onChange={e => changeSheetAssignment(event, assignment.id, { [field]: e.target.value })} />;
   }
   const draft = editing?.data;
+  function conflictList(items: typeof conflicts) {
+    return <ul className="conflict-list">{items.map((conflict, index) => <li key={`${conflict.operator}-${conflict.left.eventId}-${conflict.left.roomId}-${conflict.right.eventId}-${conflict.right.roomId}-${index}`}>
+      <strong>{conflict.operator}</strong><span className="conflict-dates">{conflict.periods.map(period => period.start === period.end ? formatShort(period.start) : `${formatShort(period.start)} al ${formatShort(period.end)}`).join(" · ")}</span>
+      <div className="conflict-bookings">{[conflict.left, conflict.right].map((booking, side) => <button type="button" key={side} disabled={documentBusy || booking.eventId === -999999} onClick={() => { const event = events.find(event => event.id === booking.eventId); if (event) beginEdit(event, "form"); }}>
+        #{booking.orderNumber} · {booking.eventName}{booking.salon ? ` · ${booking.salon}` : ""}
+      </button>)}</div>
+    </li>)}</ul>;
+  }
 
   return <main className={`app-shell${editing?.mode === "form" ? " has-editor" : ""}`}>
     <datalist id="operators">{operatorOptions.map(name => <option key={name} value={name} />)}</datalist>
@@ -531,7 +609,7 @@ ${calendario}
         </div>
         <IconButton label={theme === "light" ? "Activar modo oscuro" : "Activar modo claro"} onClick={toggleTheme}>{theme === "light" ? <Moon size={19} /> : <Sun size={19} />}</IconButton>
         <IconButton label="Exportar Excel con planilla y calendario" onClick={exportExcel} disabled={loading}><Download size={19} /></IconButton>
-        <button type="button" className="primary" disabled={loading || saving} onClick={() => beginEdit(null, "form")}><Plus size={18} />Nuevo evento</button>
+        <button type="button" className="primary" disabled={loading || saving || documentBusy} onClick={() => beginEdit(null, "form")}><Plus size={18} />Nuevo evento</button>
       </div>
     </header>
     <div className="view-toolbar">
@@ -543,6 +621,8 @@ ${calendario}
       </div> : <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2>}
       <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
+    <div className="search-toolbar"><label className="agenda-search"><Search size={17} /><input type="search" aria-label="Buscar eventos" placeholder="Buscar evento, orden, lugar, sala u operador" value={search} onChange={event => setSearch(event.target.value)} />{search && <IconButton label="Limpiar búsqueda" onClick={() => setSearch("")}><X size={16} /></IconButton>}</label>{search.trim() && <span className="search-count">{searchResults.length} resultados · Incluye eventos anteriores</span>}</div>
+    {conflicts.length > 0 && <details className="conflict-panel"><summary><AlertTriangle size={17} />{conflicts.length} {conflicts.length === 1 ? "posible cruce de operadores" : "posibles cruces de operadores"}</summary><p>Coincidencias de fecha, incluyendo armado. Horarios no verificados.</p>{conflictList(conflicts)}</details>}
     {error && <div className="error-message" role="alert">{error}</div>}
     {view === "calendar" && holidayError && <div className="holiday-status" role="status"><span>{holidayError}</span><IconButton label="Reintentar carga de feriados" onClick={() => setHolidayRetry(current => current + 1)}><RefreshCw size={14} /></IconButton></div>}
 
@@ -552,10 +632,11 @@ ${calendario}
     </div>}
 
     {editing?.mode === "form" && draft && <aside className="editor-panel" aria-labelledby="editor-title">
-      <div className="editor-header"><div><p>{editing.id === null ? "Agenda CCTV" : `Orden ${draft.orderNumber}`}</p><h2 id="editor-title">{editing.id === null ? "Nuevo evento" : "Editar evento"}</h2></div><IconButton label="Cerrar editor" disabled={saving} onClick={cancelEdit}><X size={20} /></IconButton></div>
+      <div className="editor-header"><div><p>{editing.id === null ? "Agenda CCTV" : `Orden ${draft.orderNumber}`}</p><h2 id="editor-title">{editing.id === null ? "Nuevo evento" : "Editar evento"}</h2></div><IconButton label="Cerrar editor" disabled={saving || documentBusy} onClick={cancelEdit}><X size={20} /></IconButton></div>
       <form ref={formRef} className="editor" onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }}>
       {error && <div className="error-message">{error}</div>}
-      <fieldset disabled={saving}>
+      <fieldset disabled={saving || documentBusy}>
+        {editingConflicts.length > 0 && <details className="conflict-panel editor-conflicts" open><summary><AlertTriangle size={16} />Posibles cruces de operadores</summary>{conflictList(editingConflicts)}</details>}
         <div className="event-fields">
           <label>Nro. de orden<input required value={draft.orderNumber} onChange={e => changeDraft({ orderNumber: e.target.value })} /></label>
           <label className="wide-field">Evento<input required value={draft.eventName} onChange={e => changeDraft({ eventName: e.target.value })} /></label>
@@ -577,13 +658,18 @@ ${calendario}
           </div>
           <div className="room-crew">{roles.map(role => <CrewEditor key={role} role={role} people={assignment.crew[role]} onChange={people => changeAssignment(assignment.id, { crew: { ...assignment.crew, [role]: people } })} />)}</div>
         </div>)}
-        <div className="form-footer"><span>{saving ? "Guardando..." : editing.dirty ? "Cambios sin guardar" : "Sin cambios"}</span><button type="button" onClick={cancelEdit}>Cancelar</button><button type="submit" className="primary" disabled={saving || (editing.id !== null && !editing.dirty)}><Save size={17} />{saving ? "Guardando..." : editing.id === null ? "Agregar evento" : "Guardar cambios"}</button></div>
+        <ServiceOrderEditor key={editing.id ?? "new"} eventId={editing.id} localMode={localMode} onBusyChange={setDocumentBusy} />
+        <div className="form-footer"><span>{documentBusy ? "Guardando PDF..." : saving ? "Guardando..." : editing.dirty ? "Cambios sin guardar" : "Sin cambios"}</span><button type="button" onClick={cancelEdit}>Cancelar</button><button type="submit" className="primary" disabled={saving || documentBusy || (editing.id !== null && !editing.dirty)}><Save size={17} />{saving ? "Guardando..." : editing.id === null ? "Agregar evento" : "Guardar cambios"}</button></div>
       </fieldset>
     </form></aside>}
     {savedNotice && <div className="save-notice" role="status"><Check size={17} />{savedNotice}</div>}
 
     <section className="workspace">
-      {view === "calendar" ? <div className="calendar-layout">
+      {search.trim() ? <section className="search-results" aria-label="Resultados de búsqueda"><h2>Resultados de búsqueda <span className="count">{searchResults.length}</span></h2>
+        <ul>{searchResults.map(event => <li key={event.id}><button type="button" className="search-result" style={{ "--event-color": event.color } as CSSProperties} disabled={documentBusy} onClick={() => { if (beginEdit(event, "form")) { const date = parseDate(event.setupDate || event.startDate); setMonth(new Date(date.getFullYear(), date.getMonth(), 1)); } }}>
+          <span className="search-result-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span>{event.location}</span><span>{formatShort(event.setupDate || event.startDate)} — {formatShort(event.endDate)}</span><span className="search-result-rooms">{event.assignments.map(room => room.salon).filter(Boolean).join(" · ")}</span>{event.endDate < todayIso && <small>Finalizado</small>}
+        </button></li>)}</ul>{!searchResults.length && <p className="empty-state">No se encontraron eventos.</p>}
+      </section> : view === "calendar" ? <div className="calendar-layout">
         <aside className="event-overview" aria-labelledby="event-overview-title">
           <div className="event-overview-heading"><h2 id="event-overview-title">Eventos del mes</h2><span>{calendarEvents.length}</span></div>
           <ol className="event-overview-list">{calendarEvents.map(event => {
@@ -593,6 +679,7 @@ ${calendario}
               <strong>{event.eventName}</strong><span className="overview-location">{event.location}</span>
               <span className="overview-date">{event.setupDate ? "Armado" : "Inicio"} <time dateTime={event.setupDate || event.startDate}>{formatShort(event.setupDate || event.startDate)}</time></span>
               {summary.total ? <span className="overview-confirmations"><span className="overview-confirmed"><Check size={13} />{summary.confirmed} {summary.confirmed === 1 ? "confirmado" : "confirmados"}</span><span className={summary.pending ? "overview-pending" : "overview-complete"}>{summary.pending} por confirmar</span></span> : <span className="overview-unassigned">Sin operadores asignados</span>}
+              {conflicts.some(conflict => conflict.left.eventId === event.id || conflict.right.eventId === event.id) && <span className="overview-pending"><AlertTriangle size={12} /> Posible cruce de operadores</span>}
             </button></li>;
           })}</ol>
           {!calendarEvents.length && <p className="overview-empty">{loading ? "Cargando eventos..." : "No hay eventos vigentes este mes."}</p>}
@@ -620,13 +707,14 @@ ${calendario}
                   })}
                 </span>)}
                 <span className="calendar-badges"><small className="phase-badge">{phaseFor(event, day.iso)}</small>
+                  {conflicts.some(conflict => (conflict.left.eventId === event.id || conflict.right.eventId === event.id) && conflict.periods.some(period => period.start <= day.iso && period.end >= day.iso)) && <small className="pending-badge"><AlertTriangle size={10} /> Posible cruce</small>}
                   {event.assignments.some(a => roles.some(role => a.crew[role].some(person => person.name.trim() && !person.confirmed))) && <small className="pending-badge">Operadores por confirmar</small>}
                 </span>
               </button>)}
           </article>)}</div>
         </div>
       </section></div> : <section className="sheet-panel" aria-label="Planilla de eventos">
-        <fieldset disabled={saving}>
+        <fieldset disabled={saving || documentBusy}>
           <div className="sheet-scroll" tabIndex={0} role="region" aria-label="Planilla editable con desplazamiento horizontal">
             <table>
               <colgroup>{sheetColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}</colgroup>
@@ -646,6 +734,7 @@ ${calendario}
                 <td><select aria-label={`Día · ${event.orderNumber}`} value={event.phase} onChange={e => changeSheet(event, data => ({ ...data, phase: e.target.value as EventDraft["phase"] }))}>{phases.map(p => <option key={p}>{p}</option>)}</select></td>
                 <td><div className="row-actions">
                   <IconButton label={`Editar evento ${event.orderNumber} en planilla`} onClick={() => beginEdit(event, "sheet")}><Pencil size={16} /></IconButton>
+                  <IconButton label={`Orden de servicio y detalles ${event.orderNumber}`} onClick={() => beginEdit(event, "form")}><FileText size={16} /></IconButton>
                   <a className="sheet-citation-link" href={citationLink(event, assignment)} target="_blank" rel="noreferrer" title={`Crear citaciones para ${event.orderNumber}`}><ExternalLink size={15} />Citaciones</a>
                   <button type="button" className="sheet-add-room" title={`Agregar sala a ${event.orderNumber}`} onClick={() => changeSheet(event, data => ({ ...data, assignments: [...data.assignments, newAssignment()] }))}><Plus size={15} />Sala</button>
                   <IconButton label={`Eliminar sala ${assignment.salon || "sin nombre"} de ${event.orderNumber}`} disabled={event.assignments.length === 1} onClick={() => changeSheet(event, data => ({ ...data, assignments: data.assignments.filter(a => a.id !== assignment.id) }))}><X size={16} /></IconButton>

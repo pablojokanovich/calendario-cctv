@@ -14,7 +14,7 @@ async function loadApp() {
     transformers: { after: [context => root => ts.visitNode(root, function visit(node) {
       if (ts.isImportDeclaration(node)) {
         const specifier = node.moduleSpecifier.text;
-        const resolved = import.meta.resolve(specifier === "../lib/agenda" ? "../lib/agenda.ts" : specifier);
+        const resolved = import.meta.resolve(specifier.startsWith("../lib/") ? `${specifier}.ts` : specifier);
         return ts.factory.updateImportDeclaration(node, node.modifiers, node.importClause, ts.factory.createStringLiteral(resolved), node.attributes);
       }
       return ts.visitEachChild(node, visit, context);
@@ -72,6 +72,9 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     for (const name of ["Lucas", "Esteban", "Maca", "Pablo", "Sala inicial"]) {
       assert.ok(calendarText.includes(name), "Calendar must show assigned room and operator: " + name);
     }
+    await act(async () => input("Buscar eventos").props.onChange({ target: { value: "Congreso Lucas" } }));
+    assert.ok(textContent(root().findByProps({ className: "search-results" })).includes("Congreso"));
+    await click("Limpiar búsqueda");
     await click("Nuevo evento");
     assert.equal(root().findByProps({ className: "editor-panel" }).props["aria-labelledby"], "editor-title");
     let sala = root().findByProps({ placeholder: "Nombre de sala (opcional)" });

@@ -101,6 +101,41 @@ svg { flex-shrink: 0; }
 .add-person { padding: 3px 0; min-height: 28px; border: 0; background: transparent; font-size: 13px; color: var(--ink-soft); }
 .form-footer { display: flex; justify-content: flex-end; border-top: 1px solid var(--line); padding-top: 14px; }
 .workspace { min-width: 0; width: 100%; }
+.search-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.agenda-search { display: flex; align-items: center; gap: 8px; width: min(100%, 480px); min-width: 0; padding: 0 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 5px; color: var(--ink-soft); }
+.agenda-search:focus-within { border-color: var(--accent); }
+.agenda-search input { border: 0; background: transparent; padding-inline: 0; min-height: 38px; outline: 0; }
+.agenda-search input::-webkit-search-cancel-button { display: none; }
+.agenda-search .icon-button { border: 0; width: 28px; height: 28px; min-height: 28px; flex-basis: 28px; }
+.search-count { font-size: 12px; color: var(--ink-soft); }
+.search-results h2 { font-size: 17px; padding: 6px 0 16px; }
+.search-results ul { margin: 0; padding: 0; list-style: none; }
+.search-results li { border-bottom: 1px solid var(--line); }
+.search-result { display: grid; grid-template-columns: 70px minmax(120px, 1.3fr) minmax(100px, 1fr) minmax(160px, 1fr); align-items: start; gap: 8px 16px; width: 100%; padding: 16px; background: var(--panel); border: 0; border-left: 4px solid var(--event-color); border-radius: 0; text-align: left; font-size: 13px; overflow-wrap: anywhere; }
+.search-result-order, .search-result small, .search-result-rooms { color: var(--ink-soft); font-size: 12px; }
+.search-result-rooms { grid-column: 2 / -1; }
+.conflict-panel { border: 1px solid color-mix(in srgb, #b27718 40%, var(--line)); border-left: 3px solid #b27718; background: var(--panel); padding: 12px 14px; margin-bottom: 16px; }
+.conflict-panel summary { cursor: pointer; font-weight: 600; font-size: 13px; overflow-wrap: anywhere; }
+.conflict-panel summary svg { display: inline-block; vertical-align: middle; margin-right: 6px; color: #b27718; }
+.conflict-panel > p { color: var(--ink-soft); font-size: 12px; margin-top: 10px; }
+.conflict-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 12px; }
+.conflict-list li { border-top: 1px solid var(--line); padding-top: 10px; font-size: 12px; }
+.conflict-dates { display: block; color: var(--ink-soft); margin: 4px 0; overflow-wrap: anywhere; }
+.conflict-bookings { display: flex; gap: 6px; flex-wrap: wrap; }
+.conflict-bookings button { font-size: 12px; min-height: 28px; padding: 4px 8px; text-align: left; overflow-wrap: anywhere; }
+.editor-conflicts { margin-bottom: 20px; }
+.service-order-section { border-top: 1px solid var(--line); padding: 20px 0; display: grid; gap: 12px; }
+.service-order-heading { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.service-order-heading h3 { font-size: 15px; }
+.service-order-heading > span { font-size: 11px; color: var(--ink-soft); }
+.document-note { font-size: 12px; color: var(--ink-soft); }
+.document-file { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.document-file a { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--foreground); font-size: 13px; }
+.document-file a span { overflow-wrap: anywhere; min-width: 0; }
+.document-error { display: grid; gap: 8px; color: var(--error-ink); font-size: 12px; overflow-wrap: anywhere; }
+.document-input { font-size: 12px !important; font-weight: 400 !important; }
+.document-input input { font-size: 12px; padding: 8px; }
+.service-order-section > button { justify-self: start; }
 .calendar-layout { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 20px; max-width: 1768px; margin-inline: auto; align-items: start; }
 .event-overview { min-width: 0; padding: 2px 0; }
 .event-overview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0 16px; border-bottom: 1px solid var(--line); }
@@ -269,6 +304,8 @@ th.pinned { z-index: 4; }
   .room-fields > .icon-button { justify-self: end; }
 }
 @media (max-width: 760px) {
+  .search-result { grid-template-columns: 64px minmax(0, 1fr); gap: 8px; }
+  .search-result > span:not(.search-result-order), .search-result small { grid-column: 2; }
   .calendar-layout .calendar-inner { min-width: 700px; }
   .app-shell { padding: 0 12px 12px; }
   .toolbar { margin: 0 -12px; padding: 14px 12px; gap: 14px; }
