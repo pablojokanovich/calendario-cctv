@@ -54,11 +54,14 @@ El dominio se compra aparte. Vercel solo lo conecta al proyecto.
 
 ## Ficha del evento y documentos
 
-La ficha guarda los equipos y bultos por evento en Neon, sin autoguardado. Las
-tablas nuevas se crean al primer uso; no hace falta ejecutar una migracion
-manual para actualizar una instalacion existente. El catalogo inicial de equipos
-esta en `public/equipment-catalog.json`. Los borradores del Planillero externo
-no se importan automaticamente.
+La ficha abre el generador original en `https://planillascctv.vercel.app/` desde
+el enlace Equipos y remitos. Los datos del evento viajan en el fragmento de la
+URL, sin enviarlos en la peticion HTTP. El generador recibe orden, nombre, lugar,
+fechas, salas y un resumen de operadores en las notas. No se transfieren equipos
+ni bultos entre bases. El generador conserva sus propios borradores y pide
+confirmacion antes de reemplazar el de otro evento, guardando una copia local.
+Los equipos y bultos que se hubieran cargado en la version integrada permanecen
+en Neon; retirar la interfaz no borra esos datos.
 
 Se admiten varios PDF por evento, de hasta 10 MiB cada uno. Se cargan en partes
 de 1 MiB y se descargan con una respuesta en streaming para respetar el limite

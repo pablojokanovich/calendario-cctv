@@ -24,7 +24,7 @@ async function loadApp() {
     }).outputText;
     return "data:text/javascript;base64," + Buffer.from(output).toString("base64");
   }
-  for (const name of ["EventDocuments", "EventWorkspace"]) modules[`./${name}`] = await compile(name);
+  for (const name of ["EventDocuments"]) modules[`./${name}`] = await compile(name);
   return (await import(await compile("AgendaApp"))).default;
 }
 
@@ -99,6 +99,11 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
       assert.equal(sala, original, "Room field was remounted while typing");
     }
     assert.equal(sala.props.value, "Libertador ABC");
+    const plannerLink = root().findByProps({ className: "ficha-external-link" });
+    assert.equal(plannerLink.props.target, "_blank");
+    const plannerPayload = JSON.parse(new URLSearchParams(new URL(plannerLink.props.href).hash.slice(1)).get("agenda"));
+    assert.deepEqual(plannerPayload.salas, ["Libertador ABC"]);
+    assert.equal(root().findAllByProps({ className: "event-workspace" }).length, 0, "Integrated planner must be removed");
     let copiedText;
     Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: { writeText: async text => { copiedText = text; } } } });
     await click("Copiar resumen");

@@ -82,6 +82,26 @@ export function eventCrewText(event: EventDraft): string {
   }
   return lines.join("\n");
 }
+
+export function eventPlannerLink(event: EventDraft & { id?: number | null }): string {
+  const directors = event.assignments.flatMap(room => room.crew.director)
+    .filter(person => person.name.trim() && operatorDates(event, person).length)
+    .map(person => person.name.trim());
+  const payload = {
+    source: "agenda-cctv", version: 1,
+    eventKey: event.id != null ? `agenda:${event.id}` : `orden:${event.orderNumber.trim()}`,
+    ev: {
+      os: event.orderNumber.trim(), evento: event.eventName.trim(), lugar: event.location.trim(),
+      armado: event.setupDate || event.startDate, desarme: event.endDate,
+      lider: [...new Set(directors)].join(" / "), notas: eventCrewText(event),
+    },
+    salas: event.assignments.map((room, index) => room.salon.trim() || `Sala ${index + 1}`),
+  };
+  const url = new URL("https://planillascctv.vercel.app/");
+  url.hash = new URLSearchParams({ agenda: JSON.stringify(payload) }).toString();
+  return url.toString();
+}
+
 export function crewSummary(event: EventDraft) {
   const people = new Map<string, boolean>();
   const days = eventDates(event);

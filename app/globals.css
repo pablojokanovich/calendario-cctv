@@ -298,7 +298,10 @@ th.pinned { z-index: 4; }
 .ficha-brand img { flex-shrink: 0; object-fit: contain; }
 .ficha-brand h2 { overflow-wrap: anywhere; }
 .ficha-summary { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 20px; background: var(--panel-muted); font-size: 12px; color: var(--ink-soft); overflow-wrap: anywhere; }
-.ficha-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); padding: 8px 12px 0; flex-shrink: 0; }
+.ficha-navigation { display: flex; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.ficha-tabs { display: flex; flex: 1 1 340px; flex-wrap: wrap; gap: 4px; padding: 8px 12px 0; min-width: 0; }
+.ficha-external-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; font-size: 12px; color: var(--foreground); text-decoration: none; }
+.ficha-external-link:hover { color: var(--accent); }
 .ficha-tabs button { flex: 1 0 auto; min-height: 40px; padding: 9px 10px; background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
 .ficha-tabs button[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--foreground); font-weight: 700; }
 .ficha-panel { flex: 1; min-width: 0; padding-bottom: 20px; }

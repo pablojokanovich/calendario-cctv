@@ -4,9 +4,8 @@ import type { Holiday } from "../lib/holidays";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, Copy } from "lucide-react";
 import { EventDocuments } from "./EventDocuments";
-import { EventWorkspace, type WorkspaceHandle } from "./EventWorkspace";
 import { eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
-import { colors, crewSummary, eventCrewText, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
+import { colors, crewSummary, eventCrewText, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 function EventShare({ event }: { event: EventDraft }) {
   const text = eventCrewText(event);
@@ -111,7 +110,7 @@ const operatorOptions = [
 ];
 const sheetColumnWidths = [76, 130, 110, 98, 98, 98, 120, 150, 165, 185, 145, 150, 115, 112, 96, 164];
 const weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-const fichaTabs = [["datos", "Datos"], ["salas", "Salas y operadores"], ["equipos", "Equipos y remitos"], ["citaciones", "Citaciones"], ["documentos", "Documentos"]] as const;
+const fichaTabs = [["datos", "Datos"], ["salas", "Salas y operadores"], ["citaciones", "Citaciones"], ["documentos", "Documentos"]] as const;
 type Editing = { id: number | null; data: EventDraft; mode: "form" | "sheet"; dirty: boolean };
 
 function IconButton({ label, children, ...props }: { label: string; children: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -271,10 +270,8 @@ export default function AgendaApp() {
   const [holidayRetry, setHolidayRetry] = useState(0);
   const [search, setSearch] = useState("");
   const [documentBusy, setDocumentBusy] = useState(false);
-  const [workspaceDirty, setWorkspaceDirty] = useState(false);
   const [fichaTab, setFichaTab] = useState("datos");
   const [citationsMounted, setCitationsMounted] = useState(false);
-  const workspaceRef = useRef<WorkspaceHandle>(null);
   const savingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const focusNextForm = useRef(false);
@@ -309,11 +306,11 @@ export default function AgendaApp() {
     document.documentElement.dataset.theme = preferred;
   }, []);
   useEffect(() => {
-    if (!editing?.dirty && !workspaceDirty && !documentBusy) return;
+    if (!editing?.dirty && !documentBusy) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [editing?.dirty, documentBusy, workspaceDirty]);
+  }, [editing?.dirty, documentBusy]);
   useEffect(() => {
     if (editing?.mode === "form" && focusNextForm.current) {
       formRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
@@ -328,14 +325,14 @@ export default function AgendaApp() {
   useEffect(() => {
     if (editing?.mode !== "form") return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !documentBusy && !savingRef.current && ((!editing.dirty && !workspaceDirty) || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"))) {
+      if (event.key === "Escape" && !documentBusy && !savingRef.current && (!editing.dirty || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"))) {
         setEditing(null);
         setError("");
       }
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [editing, documentBusy, workspaceDirty]);
+  }, [editing, documentBusy]);
 
   useEffect(() => {
     if (!document.modelContext?.registerTool) return;
@@ -423,7 +420,7 @@ export default function AgendaApp() {
     try { localStorage.setItem(themeKey, next); } catch {}
   }
   function canLeave() {
-    return !documentBusy && !savingRef.current && ((!editing?.dirty && !workspaceDirty) || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"));
+    return !documentBusy && !savingRef.current && (!editing?.dirty || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"));
   }
   function beginEdit(event: EventRecord | null, mode: Editing["mode"]) {
     if (editing?.id === event?.id && editing?.mode === mode) return true;
@@ -473,7 +470,6 @@ export default function AgendaApp() {
     setSaving(true);
     setError("");
     try {
-      if (snapshot.mode === "form" && workspaceRef.current && !await workspaceRef.current.save()) throw new Error("No se guardaron los equipos y bultos. Revisá esa sección de la ficha.");
       let event: EventRecord;
       if (localMode) {
         event = { ...payload, id: snapshot.id ?? Date.now() };
@@ -611,7 +607,7 @@ ${calendario}
         <IconButton label="Mes siguiente" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
         <button type="button" className="today-button" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoy</button>
       </div> : <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2>}
-      <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || documentBusy || workspaceDirty || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
+      <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || documentBusy || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
     <div className="search-toolbar"><label className="agenda-search"><Search size={17} /><input type="search" aria-label="Buscar eventos" placeholder="Buscar evento, orden, lugar, sala u operador" value={search} onChange={event => setSearch(event.target.value)} />{search && <IconButton label="Limpiar búsqueda" onClick={() => setSearch("")}><X size={16} /></IconButton>}</label>{search.trim() && <span className="search-count">{searchResults.length} resultados · Incluye eventos anteriores</span>}</div>
     {conflicts.length > 0 && <details className="conflict-panel"><summary><AlertTriangle size={17} />{conflicts.length} {conflicts.length === 1 ? "posible cruce de operadores" : "posibles cruces de operadores"}</summary><p>Coincidencias de fecha, incluyendo armado. Horarios no verificados.</p>{conflictList(conflicts)}</details>}
@@ -626,14 +622,14 @@ ${calendario}
     {editing?.mode === "form" && draft && <aside className="editor-panel" aria-labelledby="editor-title">
       <div className="editor-header"><div className="ficha-brand"><img src="/congress-rental-logo.jpg" alt="Congress Rental" width={44} height={44} /><div><p>{editing.id === null ? "Nuevo evento" : `Ficha del evento · Orden ${draft.orderNumber}`}</p><h2 id="editor-title">{draft.eventName || "Ficha del evento"}</h2></div></div><IconButton label="Cerrar ficha" disabled={saving || documentBusy} onClick={cancelEdit}><X size={20} /></IconButton></div>
       <div className="ficha-summary"><span>{draft.location || "Lugar sin completar"}</span><span>Armado: {formatShort(draft.setupDate || draft.startDate)}</span><span>{crewSummary(draft).confirmed} de {crewSummary(draft).total} operadores confirmados</span></div>
-      <div className="ficha-tabs" role="tablist" aria-label="Secciones del evento">{fichaTabs.map(([key, label], index) => <button type="button" role="tab" key={key} id={`ficha-tab-${key}`} aria-selected={fichaTab === key} aria-controls={`ficha-panel-${key}`} tabIndex={fichaTab === key ? 0 : -1} onClick={() => { setFichaTab(key); if (key === "citaciones") setCitationsMounted(true); }} onKeyDown={event => {
+      <div className="ficha-navigation"><div className="ficha-tabs" role="tablist" aria-label="Secciones del evento">{fichaTabs.map(([key, label], index) => <button type="button" role="tab" key={key} id={`ficha-tab-${key}`} aria-selected={fichaTab === key} aria-controls={`ficha-panel-${key}`} tabIndex={fichaTab === key ? 0 : -1} onClick={() => { setFichaTab(key); if (key === "citaciones") setCitationsMounted(true); }} onKeyDown={event => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
         event.preventDefault();
         const next = event.key === "Home" ? 0 : event.key === "End" ? fichaTabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + fichaTabs.length) % fichaTabs.length;
         setFichaTab(fichaTabs[next][0]);
         if (fichaTabs[next][0] === "citaciones") setCitationsMounted(true);
         event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
-      }}>{label}</button>)}</div>
+      }}>{label}</button>)}</div><a className="ficha-external-link" href={eventPlannerLink({ ...draft, id: editing.id })} target="_blank" rel="noreferrer" title="Abrir el generador original con los datos del evento"><ExternalLink size={15} />Equipos y remitos</a></div>
       <form ref={formRef} noValidate className="editor" onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }}>
       {error && <div className="error-message">{error}</div>}
       <fieldset disabled={saving || documentBusy}>
@@ -664,13 +660,12 @@ ${calendario}
           <div className="room-crew">{roles.map(role => <CrewEditor key={role} event={draft} role={role} people={assignment.crew[role]} onChange={people => changeAssignment(assignment.id, { crew: { ...assignment.crew, [role]: people } })} />)}</div>
         </div>)}
         </section>
-        <section className="ficha-panel" role="tabpanel" id="ficha-panel-equipos" aria-labelledby="ficha-tab-equipos" hidden={fichaTab !== "equipos"}><EventWorkspace ref={workspaceRef} key={editing.id ?? "new"} event={{ ...draft, id: editing.id ?? -999999 }} localMode={localMode} onBusyChange={setDocumentBusy} onDirtyChange={setWorkspaceDirty} /></section>
         <section className="ficha-panel" role="tabpanel" id="ficha-panel-documentos" aria-labelledby="ficha-tab-documentos" hidden={fichaTab !== "documentos"}><EventDocuments key={editing.id ?? "new"} eventId={editing.id} localMode={localMode} onBusyChange={setDocumentBusy} /></section>
         <section className="ficha-panel" role="tabpanel" id="ficha-panel-citaciones" aria-labelledby="ficha-tab-citaciones" hidden={fichaTab !== "citaciones"}>
           <div className="workspace-heading"><h3>Citaciones del evento</h3><a className="ficha-citation-link" href={citationLink({ ...draft, id: editing.id ?? -999999 }, draft.assignments[0])} target="_blank" rel="noreferrer"><ExternalLink size={15} />Abrir generador</a></div>
           {citationsMounted && <iframe className="citation-frame" title={`Citaciones de ${draft.eventName || "evento"}`} src={citationLink({ ...draft, id: editing.id ?? -999999 }, draft.assignments[0])} />}
         </section>
-        <div className="form-footer"><span>{documentBusy || saving ? "Guardando..." : editing.dirty || workspaceDirty ? "Cambios sin guardar" : "Sin cambios"}</span><button type="button" onClick={cancelEdit}>Cerrar</button><button type="submit" className="primary" disabled={saving || documentBusy || (editing.id !== null && !editing.dirty && !workspaceDirty)}><Save size={17} />{saving ? "Guardando..." : editing.id === null ? "Agregar evento" : "Guardar ficha"}</button></div>
+        <div className="form-footer"><span>{documentBusy || saving ? "Guardando..." : editing.dirty ? "Cambios sin guardar" : "Sin cambios"}</span><button type="button" onClick={cancelEdit}>Cerrar</button><button type="submit" className="primary" disabled={saving || documentBusy || (editing.id !== null && !editing.dirty)}><Save size={17} />{saving ? "Guardando..." : editing.id === null ? "Agregar evento" : "Guardar ficha"}</button></div>
       </fieldset>
     </form></aside>}
     {savedNotice && <div className="save-notice" role="status"><Check size={17} />{savedNotice}</div>}
