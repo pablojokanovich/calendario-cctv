@@ -30,3 +30,17 @@ test("service categories separate mixed setups without guessing unknown equipmen
   assert.equal(serviceCategory("CCTV A 2 PTZ + VMIX"), serviceCategory("VMIX + 2 PTZ"));
   assert.equal(serviceCategory("CCTV A 3 PTZ + 1 EN MANO"), "CCTV");
 });
+
+test("an unnumbered PTZ means one PTZ, alone or within a combined service", () => {
+  for (const [a, b] of [
+    ["PTZ", "1 PTZ"], ["ptz para teams", "1 PTZ PARA TEAMS"],
+    ["BROADCAST + PTZ", "BROADCAST + 1 PTZ"],
+    ["2 BROADCAST+PTZ", "2 BROADCAST + 1PTZ"],
+    ["2 BROADCAST + PTZ + GIMBAL", "2 BROADCAST + 1 PTZ + GIMBAL"],
+    ["VMIX + PTZ", "VMIX + 1 PTZ"], ["PTZ + VMIX", "1 PTZ + VMIX"],
+  ]) assert.equal(canonicalServiceName(a), canonicalServiceName(b));
+  assert.equal(canonicalServiceName("2 BROADCAST + 2PTZ"), "2 BROADCAST + 2 PTZ");
+  assert.notEqual(canonicalServiceName("2 BROADCAST + PTZ"), canonicalServiceName("2 BROADCAST + 2 PTZ"));
+  assert.notEqual(canonicalServiceName("PTZ"), canonicalServiceName("10 PTZ"));
+  assert.equal(canonicalServiceName("2 BROADCAST + PTZ + 2 PTZ"), "2 BROADCAST + 1 PTZ + 2 PTZ");
+});

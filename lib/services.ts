@@ -26,8 +26,14 @@ const definitions: [string, string[]][] = [
   ["CCTV híbrido a 2 cámaras", ["CCTV 2 HIBRIDO", "CCTV A 2 HIBRIDO"]],
 ];
 
+function normalizePtzComponents(value: string): string {
+  return value.trim().replace(/(^|\+)\s*ptz\b/gi, (_, separator: string) => `${separator}1 PTZ`)
+    .replace(/\b(\d+)\s*ptz\b/gi, "$1 PTZ")
+    .replace(/\s*\+\s*/g, " + ").replace(/\s+/g, " ");
+}
+
 function serviceKey(value: string): string {
-  return normalizeSearchText(value).replace(/\s*\+\s*/g, " + ").replace(/\s+/g, " ");
+  return normalizeSearchText(normalizePtzComponents(value));
 }
 
 const aliases = new Map<string, string>();
@@ -38,7 +44,7 @@ for (const [name, variants] of definitions) {
 export const serviceOptions = definitions.map(([name]) => name);
 
 export function canonicalServiceName(value: string): string {
-  return aliases.get(serviceKey(value)) ?? value.trim().replace(/\s+/g, " ").toLocaleUpperCase("es-AR");
+  return aliases.get(serviceKey(value)) ?? normalizePtzComponents(value).toLocaleUpperCase("es-AR");
 }
 
 export function serviceCategory(value: string): string {

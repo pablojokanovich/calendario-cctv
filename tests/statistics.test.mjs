@@ -101,3 +101,13 @@ test("user-confirmed Sony/HD services and single PTZ purposes count as the same 
   assert.equal(result.services.find(row => row.name === "CCTV a 2 cámaras").events, 3);
   assert.equal(result.services.find(row => row.name === "1 PTZ").events, 4);
 });
+
+test("statistics combine implicit and explicit single PTZ quantities without merging larger quantities", () => {
+  const events = ["2 BROADCAST + PTZ", "2 BROADCAST + 1 PTZ", "2 BROADCAST + 2 PTZ"].map((serviceType, i) => {
+    const data = event(i + 1); data.assignments[0].serviceType = serviceType; return data;
+  });
+  const { services } = buildStatistics(events, { from: "", to: "" });
+  assert.equal(services.length, 2);
+  assert.equal(services.find(row => row.name === "2 BROADCAST + 1 PTZ").events, 2);
+  assert.equal(services.find(row => row.name === "2 BROADCAST + 2 PTZ").events, 1);
+});
