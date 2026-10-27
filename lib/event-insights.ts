@@ -11,6 +11,7 @@ const locationColors: Record<string, string> = {
   "hilton": "#c04b00",
   "ba ferial": "#087eac",
   "rural": "#14532d",
+  "la rural": "#14532d",
 };
 
 export function calendarLocationColor(location: string): string | null {

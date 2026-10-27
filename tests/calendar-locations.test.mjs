@@ -13,3 +13,10 @@ test("calendar locations use their specific colors regardless of case and spacin
 test("other locations have no assigned background, including partial matches", () => {
   for (const location of ["", "Otra locación", "HILTON PILAR", "SHERATON", "CEC - SALA A", "constructor", "__proto__"]) assert.equal(calendarLocationColor(location), null);
 });
+
+test("Rural and La Rural share the same dark green badge", () => {
+  for (const location of ["LA RURAL", "La Rural", "  la   rural  "]) {
+    assert.equal(calendarLocationColor(location), calendarLocationColor("RURAL"));
+    assert.equal(calendarLocationColor(location), "#14532d");
+  }
+});
