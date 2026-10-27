@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@font-face { font-family: "Share Barlow"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/barlow-600.ttf") format("truetype"); }
+@font-face { font-family: "Share Barlow"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/barlow-700.ttf") format("truetype"); }
+@font-face { font-family: "Share Barlow Condensed"; font-style: normal; font-weight: 800; font-display: swap; src: url("/fonts/barlow-condensed-800.ttf") format("truetype"); }
+
 :root {
   color-scheme: light;
   --background: #f6f6f6;
@@ -427,6 +431,21 @@ th.pinned { z-index: 4; }
 .event-share textarea { display: block; width: 100%; max-width: 100%; box-sizing: border-box; margin: 8px 0; font: inherit; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; resize: vertical; }
 .event-share-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .event-share-actions [role="status"] { font-size: 13px; }
+.share-image-error { margin-top: 12px; }
+.share-image-result { margin-top: 16px; min-width: 0; }
+.share-image-result > img { display: block; width: 100%; height: auto; border: 1px solid var(--line); }
+.share-image-download { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 8px 12px; min-height: 36px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); color: var(--foreground); font-size: 14px; text-decoration: none; }
+.share-capture { position: fixed; left: -10000px; top: 0; width: 520px; pointer-events: none; }
+.share-image-paper { width: 520px; padding: 26px 28px 24px; background: #fff; color: #111; font-family: "Share Barlow", Arial, sans-serif; font-size: 16px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.share-image-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 18px; padding-bottom: 16px; border-bottom: 2px solid #f0f0f0; }
+.share-image-header img { display: block; width: 52px; height: 52px; object-fit: contain; }
+.share-image-order { min-width: 0; text-align: right; font-family: "Share Barlow Condensed", Arial, sans-serif; }
+.share-image-order span { display: block; font-size: 10px; color: #aaa; text-transform: uppercase; }
+.share-image-order strong { display: block; margin-top: 2px; font-size: 22px; line-height: 1.2; color: #cc1a1a; }
+.share-image-title { margin: 0 0 18px; padding-bottom: 18px; border-bottom: 3px solid #cc1a1a; color: #111; font-family: "Share Barlow Condensed", Arial, sans-serif; font-size: 36px; font-weight: 800; line-height: 1.25; }
+.share-image-blocks { display: flex; flex-direction: column; gap: 10px; }
+.share-image-block { padding: 11px 14px 18px; border-left: 4px solid #cc1a1a; border-radius: 6px; background: #f7f7f7; color: #111; white-space: pre-wrap; overflow-wrap: anywhere; }
+.share-image-footer { margin-top: 16px; padding-top: 12px; border-top: 1px solid #ebebeb; color: #aaa; text-align: center; text-transform: uppercase; font-family: "Share Barlow Condensed", Arial, sans-serif; font-size: 11px; }
 .person-assignment { min-width: 0; margin-bottom: 8px; }
 .operator-days { min-width: 0; font-size: 12px; }
 .operator-days summary { display: flex; align-items: center; gap: 5px; padding: 4px 0; cursor: pointer; color: inherit; opacity: .75; overflow-wrap: anywhere; }

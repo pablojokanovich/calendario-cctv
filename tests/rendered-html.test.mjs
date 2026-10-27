@@ -24,7 +24,7 @@ async function loadApp() {
     }).outputText;
     return "data:text/javascript;base64," + Buffer.from(output).toString("base64");
   }
-  for (const name of ["EventDocuments"]) modules[`./${name}`] = await compile(name);
+  for (const name of ["EventDocuments", "EventShare"]) modules[`./${name}`] = await compile(name);
   return (await import(await compile("AgendaApp"))).default;
 }
 
@@ -112,7 +112,23 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     navigator.clipboard.writeText = async () => { throw new Error("Denied"); };
     await click("Copiar resumen");
     assert.ok(root().findAllByProps({ role: "status" }).some(node => node.children.some(child => typeof child === "string" && child.includes("No se pudo copiar"))));
-    assert.ok(input("Resumen de salas y operadores").props.readOnly);
+    assert.ok(!input("Resumen de salas y operadores").props.readOnly);
+    const originalShareText = input("Resumen de salas y operadores").props.value;
+    await act(async () => input("Resumen de salas y operadores").props.onChange({ target: { value: "Texto personalizado\nSolo para compartir" } }));
+    navigator.clipboard.writeText = async text => { copiedText = text; };
+    await click("Copiar resumen");
+    assert.equal(copiedText, "Texto personalizado\nSolo para compartir");
+    assert.equal(sala.props.value, "Libertador ABC", "Sharing edits must not change event rooms");
+    await act(async () => sala.props.onChange({ target: { value: "Sala actualizada" } }));
+    assert.equal(input("Resumen de salas y operadores").props.value, copiedText, "Event edits must not overwrite custom sharing text");
+    assert.ok(root().findAllByProps({ role: "status" }).some(node => node.children.includes("El evento cambió. Tu texto editado se conserva.")));
+    await act(async () => sala.props.onChange({ target: { value: "Libertador ABC" } }));
+    await click("Restablecer resumen del evento");
+    assert.equal(input("Resumen de salas y operadores").props.value, originalShareText);
+    await act(async () => input("Resumen de salas y operadores").props.onChange({ target: { value: "  \n" } }));
+    assert.ok(button("Generar imagen").props.disabled);
+    assert.ok(button("Copiar resumen").props.disabled);
+    await click("Restablecer resumen del evento");
     assert.equal(requests.length, 0, "Copy must not save or send the event");
     await click("Cerrar ficha");
     await click("Planilla");

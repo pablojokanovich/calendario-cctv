@@ -2,36 +2,11 @@
 import type { Holiday } from "../lib/holidays";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, Copy } from "lucide-react";
+import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText } from "lucide-react";
 import { EventDocuments } from "./EventDocuments";
+import { EventShare } from "./EventShare";
 import { eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
-import { colors, crewSummary, eventCrewText, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
-
-function EventShare({ event }: { event: EventDraft }) {
-  const text = eventCrewText(event);
-  const [copied, setCopied] = useState("");
-  const [failed, setFailed] = useState(false);
-  const preview = useRef<HTMLTextAreaElement>(null);
-  async function copy() {
-    setFailed(false);
-    setCopied("");
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(text);
-    } catch {
-      preview.current?.focus();
-      preview.current?.select();
-      setFailed(true);
-    }
-  }
-  return <details className="event-share">
-    <summary>Resumen para compartir</summary>
-    <textarea ref={preview} aria-label="Resumen de salas y operadores" readOnly value={text} rows={12} />
-    <div className="event-share-actions"><button type="button" onClick={copy}><Copy size={16} />Copiar resumen</button>
-      <span role="status">{copied === text ? "Resumen copiado" : failed ? "No se pudo copiar. Podés copiar el texto seleccionado manualmente." : ""}</span>
-    </div>
-  </details>;
-}
+import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
   interface Document {
