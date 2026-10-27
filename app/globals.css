@@ -473,3 +473,28 @@ th.pinned { z-index: 4; }
 .calendar-timeline { min-width: 0; width: 100%; max-width: 1500px; margin-inline: auto; overflow-anchor: none; }
 .calendar-timeline .calendar-panel + .calendar-panel { margin-top: 24px; }
 .calendar-month-title { margin: 0; padding: 14px 16px; font-size: 18px; text-transform: capitalize; border-bottom: 1px solid var(--line); }
+.statistics { max-width: 1500px; margin-inline: auto; }
+.statistics-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 4px 0 20px; }
+.statistics-controls label { display: grid; gap: 6px; color: var(--ink-soft); font-size: 12px; min-width: 180px; }
+.statistics-totals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 28px; padding: 22px 0; border-block: 1px solid var(--line); gap: 20px; }
+.statistics-totals dt { color: var(--ink-soft); font-size: 13px; overflow-wrap: anywhere; }
+.statistics-totals dd { margin: 8px 0 0; font-size: 30px; line-height: 1.2; font-weight: 700; font-variant-numeric: tabular-nums; }
+.statistics-rankings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; align-items: start; }
+.statistics-ranking { min-width: 0; }
+.statistics-ranking h3 { padding-bottom: 14px; }
+.statistics-ranking table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.statistics-ranking th, .statistics-ranking td { border: 0; border-bottom: 1px solid var(--line); padding: 12px 8px; font-size: 13px; background: transparent; color: var(--foreground); }
+.statistics-ranking thead th { color: var(--ink-soft); font-size: 11px; font-weight: 500; vertical-align: bottom; }
+.statistics-ranking th:first-child { width: 56%; padding-left: 0; }
+.statistics-ranking td, .statistics-ranking thead th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.statistics-ranking tbody th { font-weight: 500; }
+.statistics-track { display: block; width: 100%; height: 4px; margin-top: 9px; background: var(--panel-muted); }
+.statistics-track > span { display: block; height: 100%; }
+.statistics-empty { display: grid; justify-items: center; gap: 12px; color: var(--ink-soft); padding: 28px 0; }
+@media (max-width: 1100px) { .statistics-rankings { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  .statistics-rankings { grid-template-columns: minmax(0, 1fr); }
+  .statistics-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .statistics-controls label { min-width: 140px; flex: 1; }
+  .toolbar .segmented { flex-wrap: wrap; }
+}

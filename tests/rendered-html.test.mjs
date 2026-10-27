@@ -24,7 +24,7 @@ async function loadApp() {
     }).outputText;
     return "data:text/javascript;base64," + Buffer.from(output).toString("base64");
   }
-  for (const name of ["EventDocuments", "EventShare"]) modules[`./${name}`] = await compile(name);
+  for (const name of ["EventDocuments", "EventShare", "Statistics"]) modules[`./${name}`] = await compile(name);
   return (await import(await compile("AgendaApp"))).default;
 }
 
@@ -72,6 +72,13 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     await act(async () => found.props.onClick());
   }
   try {
+    await click("Estadísticas");
+    assert.ok(root().findByProps({ "aria-label": "Estadísticas de la agenda" }));
+    const period = root().findByProps({ "aria-label": "Período de estadísticas" });
+    await act(async () => period.props.onChange({ target: { value: "custom" } }));
+    await act(async () => input("Estadísticas desde").props.onChange({ target: { value: "2099-01-01" } }));
+    assert.ok(root().findAllByType("h3").some(node => node.children.includes("No hay eventos en este período")));
+    await click("Calendario");
     const calendarEvent = root().findAllByProps({ className: "event-chip" })[0];
     const textContent = node => typeof node === "string" ? node : node.children.map(textContent).join("");
     const calendarText = textContent(calendarEvent);

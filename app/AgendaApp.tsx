@@ -2,9 +2,10 @@
 import type { Holiday } from "../lib/holidays";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, MapPin } from "lucide-react";
+import { CalendarDays, Table2, BarChart3, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, MapPin } from "lucide-react";
 import { EventDocuments } from "./EventDocuments";
 import { EventShare } from "./EventShare";
+import { Statistics } from "./Statistics";
 import { calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
@@ -231,7 +232,7 @@ function excelStyleId(color: string) {
 export default function AgendaApp() {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [editing, setEditing] = useState<Editing | null>(null);
-  const [view, setView] = useState<"calendar" | "sheet">("calendar");
+  const [view, setView] = useState<"calendar" | "sheet" | "statistics">("calendar");
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [loadedMonths, setLoadedMonths] = useState(() => [month]);
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -636,6 +637,7 @@ ${calendario}
         <div className="segmented" role="group" aria-label="Vista">
           <button type="button" aria-pressed={view === "calendar"} className={view === "calendar" ? "active" : ""} onClick={() => changeView("calendar")}><CalendarDays size={17} />Calendario</button>
           <button type="button" aria-pressed={view === "sheet"} className={view === "sheet" ? "active" : ""} onClick={() => changeView("sheet")}><Table2 size={17} />Planilla</button>
+          <button type="button" aria-pressed={view === "statistics"} className={view === "statistics" ? "active" : ""} onClick={() => changeView("statistics")}><BarChart3 size={17} />Estadísticas</button>
         </div>
         <IconButton label={theme === "light" ? "Activar modo oscuro" : "Activar modo claro"} onClick={toggleTheme}>{theme === "light" ? <Moon size={19} /> : <Sun size={19} />}</IconButton>
         <IconButton label="Exportar Excel con planilla y calendario" onClick={exportExcel} disabled={loading}><Download size={19} /></IconButton>
@@ -648,17 +650,17 @@ ${calendario}
         <h2 aria-live="polite" aria-atomic="true">{monthLabel(month)}</h2>
         <IconButton label="Mes siguiente" onClick={() => jumpToMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
         <button type="button" className="today-button" onClick={() => jumpToMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoy</button>
-      </div> : <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2>}
+      </div> : view === "sheet" ? <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2> : <h2>Estadísticas</h2>}
       <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || documentBusy || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
-    <div className="search-toolbar"><label className="agenda-search"><Search size={17} /><input type="search" aria-label="Buscar eventos" placeholder="Buscar evento, orden, lugar, sala u operador" value={search} onChange={event => setSearch(event.target.value)} />{search && <IconButton label="Limpiar búsqueda" onClick={() => setSearch("")}><X size={16} /></IconButton>}</label>
+    {view !== "statistics" && <div className="search-toolbar"><label className="agenda-search"><Search size={17} /><input type="search" aria-label="Buscar eventos" placeholder="Buscar evento, orden, lugar, sala u operador" value={search} onChange={event => setSearch(event.target.value)} />{search && <IconButton label="Limpiar búsqueda" onClick={() => setSearch("")}><X size={16} /></IconButton>}</label>
       {view === "calendar" && <div className="location-filter"><label><MapPin size={16} /><select aria-label="Filtrar calendario por locación" value={locationFilter} onChange={event => setLocationFilter(event.target.value)}>
         <option value="">Todas las locaciones</option>
         {locationOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
         {locationFilter && !locationOptions.some(option => option.value === locationFilter) && <option value={locationFilter}>{locationFilter.toLocaleUpperCase("es-AR")}</option>}
       </select></label>{locationFilter && <IconButton label="Mostrar todas las locaciones" onClick={() => setLocationFilter("")}><X size={16} /></IconButton>}</div>}
       {search.trim() && <span className="search-count">{searchResults.length} resultados · Incluye eventos anteriores</span>}
-    </div>
+    </div>}
     {conflicts.length > 0 && <details className="conflict-panel"><summary><AlertTriangle size={17} />{conflicts.length} {conflicts.length === 1 ? "posible cruce de operadores" : "posibles cruces de operadores"}</summary><p>Coincidencias de fecha, incluyendo armado. Horarios no verificados.</p>{conflictList(conflicts)}</details>}
     {error && <div className="error-message" role="alert">{error}</div>}
     {view === "calendar" && holidayError && <div className="holiday-status" role="status"><span>{holidayError}</span><IconButton label="Reintentar carga de feriados" onClick={() => setHolidayRetry(current => current + 1)}><RefreshCw size={14} /></IconButton></div>}
@@ -720,7 +722,7 @@ ${calendario}
     {savedNotice && <div className="save-notice" role="status"><Check size={17} />{savedNotice}</div>}
 
     <section className="workspace">
-      {search.trim() ? <section className="search-results" aria-label="Resultados de búsqueda"><h2>Resultados de búsqueda <span className="count">{searchResults.length}</span></h2>
+      {view === "statistics" ? <Statistics events={events} loading={loading} /> : search.trim() ? <section className="search-results" aria-label="Resultados de búsqueda"><h2>Resultados de búsqueda <span className="count">{searchResults.length}</span></h2>
         <ul>{searchResults.map(event => <li key={event.id}><button type="button" className="search-result" style={{ "--event-color": event.color } as CSSProperties} disabled={documentBusy} onClick={() => { if (beginEdit(event, "form")) { const date = parseDate(event.setupDate || event.startDate); jumpToMonth(new Date(date.getFullYear(), date.getMonth(), 1)); } }}>
           <span className="search-result-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span>{event.location}</span><span>{formatShort(event.setupDate || event.startDate)} — {formatShort(event.endDate)}</span><span className="search-result-rooms">{event.assignments.map(room => room.salon).filter(Boolean).join(" · ")}</span>{event.endDate < todayIso && <small>Finalizado</small>}
         </button></li>)}</ul>{!searchResults.length && <p className="empty-state">No se encontraron eventos.</p>}
