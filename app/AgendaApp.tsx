@@ -2,10 +2,10 @@
 import type { Holiday } from "../lib/holidays";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText } from "lucide-react";
+import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, MapPin } from "lucide-react";
 import { EventDocuments } from "./EventDocuments";
 import { EventShare } from "./EventShare";
-import { calendarLocationColor, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
+import { calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { createMonthScrollGesture } from "../lib/calendar-scroll";
 import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
@@ -245,6 +245,7 @@ export default function AgendaApp() {
   const [holidayError, setHolidayError] = useState("");
   const [holidayRetry, setHolidayRetry] = useState(0);
   const [search, setSearch] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
   const [documentBusy, setDocumentBusy] = useState(false);
   const [fichaTab, setFichaTab] = useState("datos");
   const [citationsMounted, setCitationsMounted] = useState(false);
@@ -425,13 +426,15 @@ export default function AgendaApp() {
   }, [holidayYears, holidayRetry]);
 
   const todayIso = dateIso(new Date());
-  const searchResults = search.trim() ? events.filter(event => eventMatchesSearch(event, search)).sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate)) : [];
+  const locationOptions = useMemo(() => calendarLocationOptions(events), [events]);
+  const locationEvents = useMemo(() => locationFilter ? events.filter(event => locationFilterKey(event.location) === locationFilter) : events, [events, locationFilter]);
+  const searchResults = search.trim() ? (view === "calendar" ? locationEvents : events).filter(event => eventMatchesSearch(event, search)).sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate)) : [];
   const insightEvents = editing ? [...events.filter(event => event.id !== editing.id), { ...editing.data, id: editing.id ?? -999999 }] : events;
   const conflicts = findCrewConflicts(insightEvents).filter(conflict => conflict.periods.some(period => period.end >= todayIso) || conflict.left.eventId === editing?.id || conflict.right.eventId === editing?.id);
   const editingConflicts = editing ? conflicts.filter(conflict => conflict.left.eventId === (editing.id ?? -999999) || conflict.right.eventId === (editing.id ?? -999999)) : [];
   const monthStart = dateIso(month);
   const monthEnd = dateIso(new Date(month.getFullYear(), month.getMonth() + 1, 0));
-  const calendarEvents = events.filter(event => event.endDate >= todayIso && (
+  const calendarEvents = locationEvents.filter(event => event.endDate >= todayIso && (
     (event.setupDate >= monthStart && event.setupDate <= monthEnd) ||
     (event.startDate <= monthEnd && event.endDate >= monthStart)
   )).sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate) || a.startDate.localeCompare(b.startDate) || a.orderNumber.localeCompare(b.orderNumber));
@@ -639,7 +642,14 @@ ${calendario}
       </div> : <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2>}
       <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || documentBusy || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
-    <div className="search-toolbar"><label className="agenda-search"><Search size={17} /><input type="search" aria-label="Buscar eventos" placeholder="Buscar evento, orden, lugar, sala u operador" value={search} onChange={event => setSearch(event.target.value)} />{search && <IconButton label="Limpiar búsqueda" onClick={() => setSearch("")}><X size={16} /></IconButton>}</label>{search.trim() && <span className="search-count">{searchResults.length} resultados · Incluye eventos anteriores</span>}</div>
+    <div className="search-toolbar"><label className="agenda-search"><Search size={17} /><input type="search" aria-label="Buscar eventos" placeholder="Buscar evento, orden, lugar, sala u operador" value={search} onChange={event => setSearch(event.target.value)} />{search && <IconButton label="Limpiar búsqueda" onClick={() => setSearch("")}><X size={16} /></IconButton>}</label>
+      {view === "calendar" && <div className="location-filter"><label><MapPin size={16} /><select aria-label="Filtrar calendario por locación" value={locationFilter} onChange={event => setLocationFilter(event.target.value)}>
+        <option value="">Todas las locaciones</option>
+        {locationOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+        {locationFilter && !locationOptions.some(option => option.value === locationFilter) && <option value={locationFilter}>{locationFilter.toLocaleUpperCase("es-AR")}</option>}
+      </select></label>{locationFilter && <IconButton label="Mostrar todas las locaciones" onClick={() => setLocationFilter("")}><X size={16} /></IconButton>}</div>}
+      {search.trim() && <span className="search-count">{searchResults.length} resultados · Incluye eventos anteriores</span>}
+    </div>
     {conflicts.length > 0 && <details className="conflict-panel"><summary><AlertTriangle size={17} />{conflicts.length} {conflicts.length === 1 ? "posible cruce de operadores" : "posibles cruces de operadores"}</summary><p>Coincidencias de fecha, incluyendo armado. Horarios no verificados.</p>{conflictList(conflicts)}</details>}
     {error && <div className="error-message" role="alert">{error}</div>}
     {view === "calendar" && holidayError && <div className="holiday-status" role="status"><span>{holidayError}</span><IconButton label="Reintentar carga de feriados" onClick={() => setHolidayRetry(current => current + 1)}><RefreshCw size={14} /></IconButton></div>}
@@ -718,7 +728,7 @@ ${calendario}
               {conflicts.some(conflict => conflict.left.eventId === event.id || conflict.right.eventId === event.id) && <span className="overview-pending"><AlertTriangle size={12} /> Posible cruce de operadores</span>}
             </button></li>;
           })}</ol>
-          {!calendarEvents.length && <p className="overview-empty">{loading ? "Cargando eventos..." : "No hay eventos vigentes este mes."}</p>}
+          {!calendarEvents.length && <p className="overview-empty">{loading ? "Cargando eventos..." : locationFilter ? "No hay eventos vigentes este mes en esta locación." : "No hay eventos vigentes este mes."}</p>}
         </aside>
         <section ref={calendarRef} className="calendar-panel" aria-label="Calendario mensual">
         <div className="calendar-inner">
@@ -726,7 +736,7 @@ ${calendario}
           <div className="calendar-grid">{monthDays.map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
             <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time></div>
             {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
-            {events.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>
+            {locationEvents.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>
               <button type="button" className="event-chip" key={event.id} style={{ background: event.color, color: darkColor(event.color) ? "#fff" : "#111" }} onClick={() => beginEdit(event, "form")}>
                 <span className="calendar-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span className="calendar-location" style={{ backgroundColor: calendarLocationColor(event.location) ?? "transparent", color: calendarLocationColor(event.location) ? "#fff" : "inherit" }}>{event.location}</span>
                 {event.assignments.map(assignment => <span className="calendar-room" key={assignment.id}>

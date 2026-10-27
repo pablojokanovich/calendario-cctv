@@ -4,19 +4,34 @@ export function normalizeSearchText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-AR").trim().replace(/\s+/g, " ");
 }
 
+export function locationFilterKey(location: string): string {
+  const key = normalizeSearchText(location);
+  return key === "la rural" ? "rural" : key === "greenville" ? "sheraton greenville" : key;
+}
+
+export function calendarLocationOptions(events: EventDraft[]): { value: string; label: string }[] {
+  const options = new Map<string, string>();
+  for (const event of events) {
+    const key = locationFilterKey(event.location);
+    if (!key || options.has(key)) continue;
+    const label = key === "rural" || key === "sheraton greenville" ? key.toLocaleUpperCase("es-AR") : event.location.trim().replace(/\s+/g, " ").toLocaleUpperCase("es-AR");
+    options.set(key, label);
+  }
+  return [...options].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label, "es-AR"));
+}
+
 const locationColors: Record<string, string> = {
   "cec": "#1d4ed8",
   "sheraton retiro": "#c81e1e",
   "sheraton greenville": "#00a82d",
-  "greenville": "#00a82d",
   "hilton": "#c04b00",
   "ba ferial": "#087eac",
   "rural": "#14532d",
-  "la rural": "#14532d",
 };
 
 export function calendarLocationColor(location: string): string | null {
-  return Object.hasOwn(locationColors, normalizeSearchText(location)) ? locationColors[normalizeSearchText(location)] : null;
+  const key = locationFilterKey(location);
+  return Object.hasOwn(locationColors, key) ? locationColors[key] : null;
 }
 
 export function eventMatchesSearch(event: EventDraft, query: string) {

@@ -89,6 +89,12 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     for (const name of ["Lucas", "Esteban", "Maca", "Pablo", "Sala inicial"]) {
       assert.ok(calendarText.includes(name), "Calendar must show assigned room and operator: " + name);
     }
+    const locationFilter = root().findByProps({ "aria-label": "Filtrar calendario por locación" });
+    await act(async () => locationFilter.props.onChange({ target: { value: "cec" } }));
+    assert.ok(root().findAllByProps({ className: "event-chip" }).length);
+    assert.equal(root().findByProps({ "aria-label": "Filtrar calendario por locación" }).props.value, "cec");
+    await click("Mostrar todas las locaciones");
+    assert.equal(root().findByProps({ "aria-label": "Filtrar calendario por locación" }).props.value, "");
     await act(async () => input("Buscar eventos").props.onChange({ target: { value: "Congreso Lucas" } }));
     assert.ok(textContent(root().findByProps({ className: "search-results" })).includes("Congreso"));
     await click("Limpiar búsqueda");
