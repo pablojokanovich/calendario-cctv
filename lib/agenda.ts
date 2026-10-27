@@ -29,6 +29,26 @@ export type EventDraft = {
   assignments: Assignment[];
 };
 export type EventRecord = EventDraft & { id: number };
+export function eventCrewText(event: EventDraft): string {
+  const line = (value: string) => value.trim().replace(/\s+/g, " ");
+  const date = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split("-").reverse().join("/") : "Sin definir";
+  const lines = [
+    line(event.eventName) || "Evento sin nombre",
+    `Orden: ${line(event.orderNumber) || "Sin definir"}`,
+    `Lugar: ${line(event.location) || "Sin definir"}`,
+    `Armado: ${date(event.setupDate)}`,
+    `Evento: ${date(event.startDate)}${event.endDate && event.endDate !== event.startDate ? ` al ${date(event.endDate)}` : ""}`,
+  ];
+  for (const [index, room] of event.assignments.entries()) {
+    lines.push("", line(room.salon) || `Sala ${index + 1} (sin nombre)`);
+    if (line(room.serviceType)) lines.push(`Servicio: ${line(room.serviceType)}`);
+    for (const role of roles) {
+      const people = room.crew[role].filter(person => line(person.name));
+      lines.push(`- ${roleLabels[role]}: ${people.length ? people.map(person => `${line(person.name)} (${person.confirmed ? "confirmado" : "por confirmar"})`).join(", ") : "Sin asignar"}`);
+    }
+  }
+  return lines.join("\n");
+}
 export function crewSummary(event: EventDraft) {
   const people = new Map<string, boolean>();
   for (const assignment of event.assignments) {

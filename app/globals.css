@@ -414,3 +414,8 @@ th.pinned { z-index: 4; }
   .editor-panel .form-footer { padding: 12px 16px; }
   .has-editor .save-notice { bottom: 130px; }
 }
+.event-share { margin: 12px 0 20px; min-width: 0; }
+.event-share summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+.event-share textarea { display: block; width: 100%; max-width: 100%; box-sizing: border-box; margin: 8px 0; font: inherit; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; resize: vertical; }
+.event-share-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.event-share-actions [role="status"] { font-size: 13px; }

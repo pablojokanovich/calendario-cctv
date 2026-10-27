@@ -97,6 +97,16 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
       assert.equal(sala, original, "Room field was remounted while typing");
     }
     assert.equal(sala.props.value, "Libertador ABC");
+    let copiedText;
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: { writeText: async text => { copiedText = text; } } } });
+    await click("Copiar resumen");
+    assert.ok(copiedText.includes("Libertador ABC"), "Copy must reflect unsaved room edits");
+    assert.ok(root().findAllByProps({ role: "status" }).some(node => node.children.includes("Resumen copiado")));
+    navigator.clipboard.writeText = async () => { throw new Error("Denied"); };
+    await click("Copiar resumen");
+    assert.ok(root().findAllByProps({ role: "status" }).some(node => node.children.some(child => typeof child === "string" && child.includes("No se pudo copiar"))));
+    assert.ok(input("Resumen de salas y operadores").props.readOnly);
+    assert.equal(requests.length, 0, "Copy must not save or send the event");
     await click("Cerrar ficha");
     await click("Planilla");
     const sheetSala = input("Sala · 0999");

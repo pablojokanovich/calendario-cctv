@@ -2,11 +2,37 @@
 import type { Holiday } from "../lib/holidays";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText } from "lucide-react";
+import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, Copy } from "lucide-react";
 import { EventDocuments } from "./EventDocuments";
 import { EventWorkspace, type WorkspaceHandle } from "./EventWorkspace";
 import { eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
-import { colors, crewSummary, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
+import { colors, crewSummary, eventCrewText, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
+
+function EventShare({ event }: { event: EventDraft }) {
+  const text = eventCrewText(event);
+  const [copied, setCopied] = useState("");
+  const [failed, setFailed] = useState(false);
+  const preview = useRef<HTMLTextAreaElement>(null);
+  async function copy() {
+    setFailed(false);
+    setCopied("");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(text);
+    } catch {
+      preview.current?.focus();
+      preview.current?.select();
+      setFailed(true);
+    }
+  }
+  return <details className="event-share">
+    <summary>Resumen para compartir</summary>
+    <textarea ref={preview} aria-label="Resumen de salas y operadores" readOnly value={text} rows={12} />
+    <div className="event-share-actions"><button type="button" onClick={copy}><Copy size={16} />Copiar resumen</button>
+      <span role="status">{copied === text ? "Resumen copiado" : failed ? "No se pudo copiar. Podés copiar el texto seleccionado manualmente." : ""}</span>
+    </div>
+  </details>;
+}
 
 declare global {
   interface Document {
@@ -609,6 +635,7 @@ ${calendario}
         </section>
         <section className="ficha-panel" role="tabpanel" id="ficha-panel-salas" aria-labelledby="ficha-tab-salas" hidden={fichaTab !== "salas"}>
         <div className="assignments-head"><h3>Salas y operadores</h3><button type="button" onClick={() => changeDraft({ assignments: [...draft.assignments, newAssignment()] })}><Plus size={16} />Agregar sala</button></div>
+        <EventShare key={editing.id ?? "new"} event={draft} />
         {draft.assignments.map((assignment, index) => <div className="assignment-editor" key={assignment.id}>
           <div className="room-fields">
             <label>Sala {index + 1}<input placeholder="Nombre de sala (opcional)" value={assignment.salon} onChange={e => changeAssignment(assignment.id, { salon: e.target.value })} /></label>
