@@ -8,19 +8,24 @@ import { dateIso, newDraft, normalizeEvent } from "../lib/agenda.ts";
 
 // Exercise React reconciliation without launching or inspecting a browser.
 async function loadApp() {
-  const source = await readFile(new URL("../app/AgendaApp.tsx", import.meta.url), "utf8");
-  const output = ts.transpileModule(source, {
+  const modules = {};
+  async function compile(name) {
+    const source = await readFile(new URL(`../app/${name}.tsx`, import.meta.url), "utf8");
+    const output = ts.transpileModule(source, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX },
     transformers: { after: [context => root => ts.visitNode(root, function visit(node) {
       if (ts.isImportDeclaration(node)) {
         const specifier = node.moduleSpecifier.text;
-        const resolved = import.meta.resolve(specifier.startsWith("../lib/") ? `${specifier}.ts` : specifier);
+        const resolved = modules[specifier] || import.meta.resolve(specifier.startsWith("../lib/") ? `${specifier}.ts` : specifier);
         return ts.factory.updateImportDeclaration(node, node.modifiers, node.importClause, ts.factory.createStringLiteral(resolved), node.attributes);
       }
       return ts.visitEachChild(node, visit, context);
     })] },
-  }).outputText;
-  return (await import("data:text/javascript;base64," + Buffer.from(output).toString("base64"))).default;
+    }).outputText;
+    return "data:text/javascript;base64," + Buffer.from(output).toString("base64");
+  }
+  for (const name of ["EventDocuments", "EventWorkspace"]) modules[`./${name}`] = await compile(name);
+  return (await import(await compile("AgendaApp"))).default;
 }
 
 test("room typing, inline edits, per-person confirmations, theme persistence and failed saves", async () => {
@@ -43,6 +48,9 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
   let failSave = false;
   const requests = [];
   globalThis.fetch = async (url, init) => {
+    if (url === "/equipment-catalog.json") return Response.json([]);
+    if (url.endsWith("/workspace")) return Response.json({ workspace: { equipment: [], packages: [] } });
+    if (url.endsWith("/documents")) return Response.json({ documents: [] });
     if (url.startsWith("/api/holidays")) return Response.json({ holidays: [{ date: today, name: "Feriado de prueba", nonWorking: false }] });
     if (!init?.method) return Response.json({ events: [saved] });
     requests.push({ url, ...init });
@@ -77,6 +85,10 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     await click("Limpiar búsqueda");
     await click("Nuevo evento");
     assert.equal(root().findByProps({ className: "editor-panel" }).props["aria-labelledby"], "editor-title");
+    await click("Citaciones");
+    const citationFrame = root().findByType("iframe");
+    await click("Datos");
+    assert.equal(root().findByType("iframe"), citationFrame, "Changing dossier tabs must preserve citation input state");
     let sala = root().findByProps({ placeholder: "Nombre de sala (opcional)" });
     const original = sala;
     for (const char of "Libertador ABC") {
@@ -85,7 +97,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
       assert.equal(sala, original, "Room field was remounted while typing");
     }
     assert.equal(sala.props.value, "Libertador ABC");
-    await click("Cancelar");
+    await click("Cerrar ficha");
     await click("Planilla");
     const sheetSala = input("Sala · 0999");
     await act(async () => sheetSala.props.onFocus());

@@ -51,3 +51,27 @@ agenda.congressrental.com
 ```
 
 El dominio se compra aparte. Vercel solo lo conecta al proyecto.
+
+## Ficha del evento y documentos
+
+La ficha guarda los equipos y bultos por evento en Neon, sin autoguardado. Las
+tablas nuevas se crean al primer uso; no hace falta ejecutar una migracion
+manual para actualizar una instalacion existente. El catalogo inicial de equipos
+esta en `public/equipment-catalog.json`. Los borradores del Planillero externo
+no se importan automaticamente.
+
+Se admiten varios PDF por evento, de hasta 10 MiB cada uno. Se cargan en partes
+de 1 MiB y se descargan con una respuesta en streaming para respetar el limite
+de payload de las funciones de Vercel. Los PDF anteriores se migran a este
+almacenamiento conservando su fecha original de carga.
+
+Los archivos completados vencen 30 dias despues de su carga. Los intentos de
+carga sin completar vencen al dia. Al vencer dejan de estar disponibles; el
+cron diario de `vercel.json` elimina archivos y partes vencidos, sin borrar
+eventos ni equipos. El cron solo corre en el despliegue de produccion. Su
+horario es 08:00 UTC, con la precision que permita el plan de Vercel.
+
+Opcionalmente, configurar `CRON_SECRET` en Vercel: Vercel envia ese valor como
+token Bearer al ejecutar el cron. Sin esta variable, el endpoint de limpieza
+solo permite borrar archivos ya vencidos y no expone datos privados. Consultar
+documentos y manipular archivos vigentes siempre requiere la clave de la app.

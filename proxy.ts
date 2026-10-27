@@ -3,7 +3,7 @@ import { agendaAuthToken, authCookieName } from "./lib/auth";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname === "/login" || pathname === "/api/login" || pathname === "/congress-rental-logo.jpg") return NextResponse.next();
+  if (pathname === "/login" || pathname === "/api/login" || pathname === "/congress-rental-logo.jpg" || pathname === "/api/maintenance/expired-documents") return NextResponse.next();
 
   const token = request.cookies.get(authCookieName)?.value;
   if (token && token === await agendaAuthToken()) return NextResponse.next();

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, pgTable, serial, text } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, primaryKey, serial, text } from "drizzle-orm/pg-core";
 
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),
@@ -21,5 +21,26 @@ export const serviceOrders = pgTable("event_service_orders", {
   name: text("name").notNull(),
   size: integer("size").notNull(),
   content: text("content").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const eventDocuments = pgTable("event_documents", {
+  id: text("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  size: integer("size").notNull(),
+  uploadedAt: text("uploaded_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  complete: boolean("complete").notNull().default(false),
+});
+export const documentChunks = pgTable("event_document_chunks", {
+  documentId: text("document_id").notNull().references(() => eventDocuments.id, { onDelete: "cascade" }),
+  part: integer("part").notNull(),
+  content: text("content").notNull(),
+}, table => [primaryKey({ columns: [table.documentId, table.part] })]);
+
+export const eventWorkspaces = pgTable("event_workspaces", {
+  eventId: integer("event_id").primaryKey().references(() => events.id, { onDelete: "cascade" }),
+  state: text("state").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

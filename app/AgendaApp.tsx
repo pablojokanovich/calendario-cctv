@@ -2,9 +2,10 @@
 import type { Holiday } from "../lib/holidays";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, Upload } from "lucide-react";
+import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText } from "lucide-react";
+import { EventDocuments } from "./EventDocuments";
+import { EventWorkspace, type WorkspaceHandle } from "./EventWorkspace";
 import { eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
-import { maxServiceOrderBytes, validateServiceOrder, type ServiceOrderInfo } from "../lib/service-order";
 import { colors, crewSummary, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
@@ -84,6 +85,7 @@ const operatorOptions = [
 ];
 const sheetColumnWidths = [76, 130, 110, 98, 98, 98, 120, 150, 165, 185, 145, 150, 115, 112, 96, 164];
 const weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const fichaTabs = [["datos", "Datos"], ["salas", "Salas y operadores"], ["equipos", "Equipos y remitos"], ["citaciones", "Citaciones"], ["documentos", "Documentos"]] as const;
 type Editing = { id: number | null; data: EventDraft; mode: "form" | "sheet"; dirty: boolean };
 
 function IconButton({ label, children, ...props }: { label: string; children: ReactNode } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -113,66 +115,6 @@ function CrewEditor({ role, people, onChange, onFocus, compact = false }: {
   </div>;
 }
 
-function ServiceOrderEditor({ eventId, localMode, onBusyChange }: { eventId: number | null; localMode: boolean; onBusyChange: (busy: boolean) => void }) {
-  const [document, setDocument] = useState<ServiceOrderInfo | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [retry, setRetry] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const available = !!eventId && eventId > 0 && !localMode;
-  const endpoint = `/api/events/${eventId}/service-order`;
-  useEffect(() => {
-    setFile(null); setDocument(null); setError(""); setNotice("");
-    if (!available) return;
-    const controller = new AbortController();
-    setLoading(true);
-    void fetch(endpoint, { signal: controller.signal }).then(async response => {
-      const data = await response.json() as { document?: ServiceOrderInfo | null; error?: string };
-      if (!response.ok) throw new Error(data.error || "No se pudo cargar el PDF.");
-      if (!controller.signal.aborted) setDocument(data.document || null);
-    }).catch(error => { if (!controller.signal.aborted) setError(error.message); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [available, endpoint, retry]);
-
-  async function changeDocument(remove = false) {
-    if (busy || !available || (!remove && !file)) return;
-    if (remove && !window.confirm("¿Quitar la orden de servicio de este evento?")) return;
-    setBusy(true); onBusyChange(true); setError(""); setNotice("");
-    try {
-      const body = new FormData();
-      if (!remove && file) {
-        if (file.size > maxServiceOrderBytes) throw new Error("El PDF no puede superar los 3 MB.");
-        const validation = validateServiceOrder(file.name, new Uint8Array(await file.arrayBuffer()));
-        if (validation) throw new Error(validation);
-        body.set("file", file);
-      }
-      const response = await fetch(endpoint, { method: remove ? "DELETE" : "PUT", body: remove ? undefined : body });
-      const data = await response.json().catch(() => null) as { document?: ServiceOrderInfo; error?: string } | null;
-      if (!response.ok || !data) throw new Error(data?.error || "No se pudo guardar el PDF. Intentá nuevamente.");
-      if (!remove && !data.document) throw new Error("No se pudo verificar el guardado del PDF.");
-      setDocument(remove ? null : data.document || null); setFile(null);
-      if (inputRef.current) inputRef.current.value = "";
-      setNotice(remove ? "PDF eliminado" : "PDF guardado");
-    } catch (error) { setError(error instanceof Error ? error.message : "No se pudo guardar el PDF."); }
-    finally { setBusy(false); onBusyChange(false); }
-  }
-  return <section className="service-order-section" aria-label="Orden de servicio">
-    <div className="service-order-heading"><FileText size={18} /><h3>Orden de servicio</h3><span>Opcional · PDF · Hasta 3 MB</span></div>
-    {!available ? <p className="document-note">{localMode ? "Los adjuntos requieren conexión con la agenda compartida." : "Disponible después de guardar el evento."}</p> : <>
-      {loading ? <p className="document-note">Cargando adjunto...</p> : <>
-        {document ? <div className="document-file"><a href={`${endpoint}?download=1`} target="_blank" rel="noreferrer"><FileText size={16} /><span>{document.name}</span><ExternalLink size={14} /></a><button type="button" className="icon-button" title="Quitar PDF" aria-label="Quitar PDF" disabled={busy} onClick={() => void changeDocument(true)}><Trash2 size={16} /></button></div> : <p className="document-note">Sin PDF adjunto</p>}
-        <label className="document-input">Seleccionar orden de servicio (PDF)<input ref={inputRef} type="file" accept="application/pdf,.pdf" disabled={busy} onChange={event => { setFile(event.target.files?.[0] || null); setNotice(""); }} /></label>
-        {file && <button type="button" disabled={busy} onClick={() => void changeDocument()}><Upload size={16} />{busy ? "Subiendo PDF..." : document ? "Reemplazar PDF" : "Subir PDF"}</button>}
-      </>}
-      {notice && <p className="document-note" role="status">{notice}</p>}
-      {error && <div className="document-error" role="alert"><span>{error}</span><button type="button" disabled={busy} onClick={() => setRetry(value => value + 1)}>Recargar adjunto</button></div>}
-    </>}
-  </section>;
-}
 
 function parseDate(value: string) { return new Date(`${value}T12:00:00`); }
 function formatShort(value: string) { return value ? parseDate(value).toLocaleDateString("es-AR") : ""; }
@@ -286,6 +228,10 @@ export default function AgendaApp() {
   const [holidayRetry, setHolidayRetry] = useState(0);
   const [search, setSearch] = useState("");
   const [documentBusy, setDocumentBusy] = useState(false);
+  const [workspaceDirty, setWorkspaceDirty] = useState(false);
+  const [fichaTab, setFichaTab] = useState("datos");
+  const [citationsMounted, setCitationsMounted] = useState(false);
+  const workspaceRef = useRef<WorkspaceHandle>(null);
   const savingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const focusNextForm = useRef(false);
@@ -320,11 +266,11 @@ export default function AgendaApp() {
     document.documentElement.dataset.theme = preferred;
   }, []);
   useEffect(() => {
-    if (!editing?.dirty && !documentBusy) return;
+    if (!editing?.dirty && !workspaceDirty && !documentBusy) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [editing?.dirty, documentBusy]);
+  }, [editing?.dirty, documentBusy, workspaceDirty]);
   useEffect(() => {
     if (editing?.mode === "form" && focusNextForm.current) {
       formRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
@@ -339,14 +285,14 @@ export default function AgendaApp() {
   useEffect(() => {
     if (editing?.mode !== "form") return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !documentBusy && !savingRef.current && (!editing.dirty || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"))) {
+      if (event.key === "Escape" && !documentBusy && !savingRef.current && ((!editing.dirty && !workspaceDirty) || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"))) {
         setEditing(null);
         setError("");
       }
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [editing, documentBusy]);
+  }, [editing, documentBusy, workspaceDirty]);
 
   useEffect(() => {
     if (!document.modelContext?.registerTool) return;
@@ -434,7 +380,7 @@ export default function AgendaApp() {
     try { localStorage.setItem(themeKey, next); } catch {}
   }
   function canLeave() {
-    return !documentBusy && !savingRef.current && (!editing?.dirty || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"));
+    return !documentBusy && !savingRef.current && ((!editing?.dirty && !workspaceDirty) || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"));
   }
   function beginEdit(event: EventRecord | null, mode: Editing["mode"]) {
     if (editing?.id === event?.id && editing?.mode === mode) return true;
@@ -442,6 +388,8 @@ export default function AgendaApp() {
     focusNextForm.current = mode === "form";
     setError("");
     setSavedNotice("");
+    setFichaTab("datos");
+    setCitationsMounted(false);
     setEditing({ id: event?.id ?? null, data: event ? structuredClone(event) : newDraft(), mode, dirty: false });
     return true;
   }
@@ -475,13 +423,14 @@ export default function AgendaApp() {
   async function save({ keepEditing = false }: { keepEditing?: boolean } = {}) {
     if (!editing || savingRef.current || documentBusy) return;
     const validation = validateEvent(editing.data);
-    if (validation) { setError(validation); return; }
+    if (validation) { setError(validation); setFichaTab("datos"); return; }
     const snapshot = editing;
     const payload = { ...snapshot.data, assignments: snapshot.data.assignments.map(syncCrew) };
     savingRef.current = true;
     setSaving(true);
     setError("");
     try {
+      if (snapshot.mode === "form" && workspaceRef.current && !await workspaceRef.current.save()) throw new Error("No se guardaron los equipos y bultos. Revisá esa sección de la ficha.");
       let event: EventRecord;
       if (localMode) {
         event = { ...payload, id: snapshot.id ?? Date.now() };
@@ -499,7 +448,7 @@ export default function AgendaApp() {
       setMessage(localMode ? "Guardado en este navegador" : "Cambios guardados online");
       setSavedNotice(localMode ? "Guardado en este navegador" : "Cambios guardados");
       setEditing(current => {
-        if (!keepEditing && !(snapshot.id === null && snapshot.mode === "form")) return null;
+        if (!keepEditing && snapshot.mode !== "form") return null;
         if (!current || current.id !== snapshot.id || current.mode !== snapshot.mode) return current;
         if (current !== snapshot) return current;
         const savedData: EventDraft = {
@@ -619,7 +568,7 @@ ${calendario}
         <IconButton label="Mes siguiente" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
         <button type="button" className="today-button" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoy</button>
       </div> : <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2>}
-      <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
+      <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || documentBusy || workspaceDirty || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
     <div className="search-toolbar"><label className="agenda-search"><Search size={17} /><input type="search" aria-label="Buscar eventos" placeholder="Buscar evento, orden, lugar, sala u operador" value={search} onChange={event => setSearch(event.target.value)} />{search && <IconButton label="Limpiar búsqueda" onClick={() => setSearch("")}><X size={16} /></IconButton>}</label>{search.trim() && <span className="search-count">{searchResults.length} resultados · Incluye eventos anteriores</span>}</div>
     {conflicts.length > 0 && <details className="conflict-panel"><summary><AlertTriangle size={17} />{conflicts.length} {conflicts.length === 1 ? "posible cruce de operadores" : "posibles cruces de operadores"}</summary><p>Coincidencias de fecha, incluyendo armado. Horarios no verificados.</p>{conflictList(conflicts)}</details>}
@@ -632,11 +581,21 @@ ${calendario}
     </div>}
 
     {editing?.mode === "form" && draft && <aside className="editor-panel" aria-labelledby="editor-title">
-      <div className="editor-header"><div><p>{editing.id === null ? "Agenda CCTV" : `Orden ${draft.orderNumber}`}</p><h2 id="editor-title">{editing.id === null ? "Nuevo evento" : "Editar evento"}</h2></div><IconButton label="Cerrar editor" disabled={saving || documentBusy} onClick={cancelEdit}><X size={20} /></IconButton></div>
-      <form ref={formRef} className="editor" onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }}>
+      <div className="editor-header"><div className="ficha-brand"><img src="/congress-rental-logo.jpg" alt="Congress Rental" width={44} height={44} /><div><p>{editing.id === null ? "Nuevo evento" : `Ficha del evento · Orden ${draft.orderNumber}`}</p><h2 id="editor-title">{draft.eventName || "Ficha del evento"}</h2></div></div><IconButton label="Cerrar ficha" disabled={saving || documentBusy} onClick={cancelEdit}><X size={20} /></IconButton></div>
+      <div className="ficha-summary"><span>{draft.location || "Lugar sin completar"}</span><span>Armado: {formatShort(draft.setupDate || draft.startDate)}</span><span>{crewSummary(draft).confirmed} de {crewSummary(draft).total} operadores confirmados</span></div>
+      <div className="ficha-tabs" role="tablist" aria-label="Secciones del evento">{fichaTabs.map(([key, label], index) => <button type="button" role="tab" key={key} id={`ficha-tab-${key}`} aria-selected={fichaTab === key} aria-controls={`ficha-panel-${key}`} tabIndex={fichaTab === key ? 0 : -1} onClick={() => { setFichaTab(key); if (key === "citaciones") setCitationsMounted(true); }} onKeyDown={event => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === "Home" ? 0 : event.key === "End" ? fichaTabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + fichaTabs.length) % fichaTabs.length;
+        setFichaTab(fichaTabs[next][0]);
+        if (fichaTabs[next][0] === "citaciones") setCitationsMounted(true);
+        event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
+      }}>{label}</button>)}</div>
+      <form ref={formRef} noValidate className="editor" onSubmit={(event: FormEvent) => { event.preventDefault(); void save(); }}>
       {error && <div className="error-message">{error}</div>}
       <fieldset disabled={saving || documentBusy}>
         {editingConflicts.length > 0 && <details className="conflict-panel editor-conflicts" open><summary><AlertTriangle size={16} />Posibles cruces de operadores</summary>{conflictList(editingConflicts)}</details>}
+        <section className="ficha-panel" role="tabpanel" id="ficha-panel-datos" aria-labelledby="ficha-tab-datos" hidden={fichaTab !== "datos"}>
         <div className="event-fields">
           <label>Nro. de orden<input required value={draft.orderNumber} onChange={e => changeDraft({ orderNumber: e.target.value })} /></label>
           <label className="wide-field">Evento<input required value={draft.eventName} onChange={e => changeDraft({ eventName: e.target.value })} /></label>
@@ -647,6 +606,8 @@ ${calendario}
           <label>Día en calendario<select value={draft.phase} onChange={e => changeDraft({ phase: e.target.value as EventDraft["phase"] })}>{phases.map(p => <option key={p}>{p}</option>)}</select></label>
           <div className="color-field"><span>Color del evento</span><div className="swatches">{colors.map(color => <button type="button" key={color} title={`Color ${color}`} aria-label={`Color ${color}`} aria-pressed={draft.color === color} style={{ background: color, color: darkColor(color) ? "#fff" : "#111" }} onClick={() => changeDraft({ color })}>{draft.color === color && <Check size={16} />}</button>)}</div></div>
         </div>
+        </section>
+        <section className="ficha-panel" role="tabpanel" id="ficha-panel-salas" aria-labelledby="ficha-tab-salas" hidden={fichaTab !== "salas"}>
         <div className="assignments-head"><h3>Salas y operadores</h3><button type="button" onClick={() => changeDraft({ assignments: [...draft.assignments, newAssignment()] })}><Plus size={16} />Agregar sala</button></div>
         {draft.assignments.map((assignment, index) => <div className="assignment-editor" key={assignment.id}>
           <div className="room-fields">
@@ -658,8 +619,14 @@ ${calendario}
           </div>
           <div className="room-crew">{roles.map(role => <CrewEditor key={role} role={role} people={assignment.crew[role]} onChange={people => changeAssignment(assignment.id, { crew: { ...assignment.crew, [role]: people } })} />)}</div>
         </div>)}
-        <ServiceOrderEditor key={editing.id ?? "new"} eventId={editing.id} localMode={localMode} onBusyChange={setDocumentBusy} />
-        <div className="form-footer"><span>{documentBusy ? "Guardando PDF..." : saving ? "Guardando..." : editing.dirty ? "Cambios sin guardar" : "Sin cambios"}</span><button type="button" onClick={cancelEdit}>Cancelar</button><button type="submit" className="primary" disabled={saving || documentBusy || (editing.id !== null && !editing.dirty)}><Save size={17} />{saving ? "Guardando..." : editing.id === null ? "Agregar evento" : "Guardar cambios"}</button></div>
+        </section>
+        <section className="ficha-panel" role="tabpanel" id="ficha-panel-equipos" aria-labelledby="ficha-tab-equipos" hidden={fichaTab !== "equipos"}><EventWorkspace ref={workspaceRef} key={editing.id ?? "new"} event={{ ...draft, id: editing.id ?? -999999 }} localMode={localMode} onBusyChange={setDocumentBusy} onDirtyChange={setWorkspaceDirty} /></section>
+        <section className="ficha-panel" role="tabpanel" id="ficha-panel-documentos" aria-labelledby="ficha-tab-documentos" hidden={fichaTab !== "documentos"}><EventDocuments key={editing.id ?? "new"} eventId={editing.id} localMode={localMode} onBusyChange={setDocumentBusy} /></section>
+        <section className="ficha-panel" role="tabpanel" id="ficha-panel-citaciones" aria-labelledby="ficha-tab-citaciones" hidden={fichaTab !== "citaciones"}>
+          <div className="workspace-heading"><h3>Citaciones del evento</h3><a className="ficha-citation-link" href={citationLink({ ...draft, id: editing.id ?? -999999 }, draft.assignments[0])} target="_blank" rel="noreferrer"><ExternalLink size={15} />Abrir generador</a></div>
+          {citationsMounted && <iframe className="citation-frame" title={`Citaciones de ${draft.eventName || "evento"}`} src={citationLink({ ...draft, id: editing.id ?? -999999 }, draft.assignments[0])} />}
+        </section>
+        <div className="form-footer"><span>{documentBusy || saving ? "Guardando..." : editing.dirty || workspaceDirty ? "Cambios sin guardar" : "Sin cambios"}</span><button type="button" onClick={cancelEdit}>Cerrar</button><button type="submit" className="primary" disabled={saving || documentBusy || (editing.id !== null && !editing.dirty && !workspaceDirty)}><Save size={17} />{saving ? "Guardando..." : editing.id === null ? "Agregar evento" : "Guardar ficha"}</button></div>
       </fieldset>
     </form></aside>}
     {savedNotice && <div className="save-notice" role="status"><Check size={17} />{savedNotice}</div>}
