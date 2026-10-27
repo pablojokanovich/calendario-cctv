@@ -7,7 +7,9 @@ test("service aliases group spelling, camera words, component order and capitali
     ["CCTV A 1 HD", "cctv a 1 cámara hd"],
     ["CCTV 2 BROADCAST", "CCTV A 2 BROADCAST", "CCTV A 2 HD (BROADCAST)"],
     ["VMIX+3 PTZ", "3 PTZ + VMIX"],
-    ["VMIX + 1 PTZ", "1 PTZ POR VMIX"],
+    ["VMIX + 1 PTZ", "1 PTZ + VMIX"],
+    ["2 SONY", "CCTV A 2", "CCTV A 2 HD", "CCTV a 2 cámaras Sony", "CCTV a 2 cámaras HD"],
+    ["1 PTZ", "1 PTZ PARA TEAMS", "1 PTZ PARA ZOOM", "Cámara PTZ 1 PARA ZOOM", "1 PTZ PARA ZOOM (PUBLICO)", "1 PTZ CON GRABACION", "1 PTZ POR VMIX"],
     ["HIBRIDO", "CCTV HÍBRIDO"],
   ]) for (const item of group) assert.equal(canonicalServiceName(item), canonicalServiceName(group[0]));
   assert.equal(new Set(serviceOptions).size, serviceOptions.length);
@@ -15,7 +17,7 @@ test("service aliases group spelling, camera words, component order and capitali
 });
 
 test("configurations retain quantities, camera models, workflows and incomplete descriptions", () => {
-  for (const [a, b] of [["1 PTZ", "2 PTZ"], ["CCTV A 2 SONY", "CCTV A 2 BROADCAST"], ["VMIX", "GRABACION VMIX"], ["CCTV A 2", "CCTV A 2 HD"], ["CCTV A 3 BROADCAST +", "CCTV A 3 BROADCAST"], ["1 PTZ PARA TEAMS", "1 PTZ PARA ZOOM"]]) {
+  for (const [a, b] of [["1 PTZ", "2 PTZ"], ["CCTV A 2 SONY", "CCTV A 2 BROADCAST"], ["VMIX", "GRABACION VMIX"], ["CCTV A 2", "CCTV A 2 + VMIX"], ["CCTV A 3 BROADCAST +", "CCTV A 3 BROADCAST"], ["1 PTZ", "VMIX + 1 PTZ"]]) {
     assert.notEqual(canonicalServiceName(a), canonicalServiceName(b));
   }
   assert.equal(canonicalServiceName("  CCTV A 3 + GIMBAL Y 2  "), "CCTV A 3 + GIMBAL Y 2");

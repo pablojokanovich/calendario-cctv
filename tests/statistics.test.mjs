@@ -92,3 +92,12 @@ test("service statistics group categories or equivalent configurations without d
   assert.equal(categories.services[0].days, 6);
   assert.deepEqual([a, b], before);
 });
+
+test("user-confirmed Sony/HD services and single PTZ purposes count as the same configuration", () => {
+  const names = ["2 SONY", "CCTV A 2", "CCTV A 2 HD", "1 PTZ PARA TEAMS", "1 PTZ CON GRABACION", "CAMARA PTZ 1 PARA ZOOM", "1 PTZ POR VMIX"];
+  const events = names.map((name, i) => { const data = event(i + 1); data.assignments[0].serviceType = name; return data; });
+  const result = buildStatistics(events, { from: "", to: "" }, "configuration");
+  assert.equal(result.services.length, 2);
+  assert.equal(result.services.find(row => row.name === "CCTV a 2 cámaras").events, 3);
+  assert.equal(result.services.find(row => row.name === "1 PTZ").events, 4);
+});
