@@ -4,6 +4,8 @@ import { canonicalOperatorName, locationFilterKey, normalizeSearchText } from ".
 export type StatisticsRow = { key: string; name: string; events: number; days: number };
 export type StatisticsRange = { from: string; to: string };
 
+const internalStaff = new Set(["pablo jokanovich", "leandro martinez"]);
+
 export function buildStatistics(events: EventRecord[], range: StatisticsRange) {
   const operators = new Map<string, { name: string; events: Set<number>; days: Set<string> }>();
   const locations = new Map<string, { name: string; events: Set<number>; days: Set<string> }>();
@@ -31,7 +33,7 @@ export function buildStatistics(events: EventRecord[], range: StatisticsRange) {
         const name = canonicalOperatorName(person.name);
         const personKey = normalizeSearchText(name);
         const workingDays = days.filter(day => operatorWorksOn(person, day));
-        if (!personKey || !workingDays.length) continue;
+        if (!personKey || internalStaff.has(personKey) || !workingDays.length) continue;
         const operator = operators.get(personKey) ?? { name, events: new Set<number>(), days: new Set<string>() };
         operator.events.add(event.id);
         workingDays.forEach(day => operator.days.add(day));

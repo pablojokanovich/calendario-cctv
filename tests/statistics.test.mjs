@@ -60,3 +60,18 @@ test("statistics group the operator aliases explicitly confirmed by the user", (
   const result = buildStatistics([a, b, c], { from: "", to: "" });
   assert.deepEqual(result.operators.map(p => [p.name, p.events]), [["Camila Diamela", 2], ["Lucas Andreu", 2], ["Camila Garcia", 1]]);
 });
+
+test("statistics exclude internal staff aliases only from operator totals, retaining freelancers and event totals", () => {
+  const data = event(1);
+  const people = ["Pablo", "Pablo J.", "Pablo Joka", "Pablo Jokanovich", "Lean", "Leandro", "Leandro Martinez", "Pablo Nami", "Esteban", "Esteban Santamarina", "Esteban Gomez"];
+  data.assignments[0].crew.cameras = people.map((name, index) => ({ id: `person-${index}`, name, confirmed: true }));
+  const before = structuredClone(data);
+  const result = buildStatistics([data], { from: "", to: "" });
+  assert.deepEqual(result.operators.map(p => p.name).sort(), ["Esteban Gomez", "Esteban Santamarina", "Pablo Daniel Nami"]);
+  assert.equal(result.operators.find(p => p.name === "Esteban Santamarina").events, 1);
+  assert.equal(result.eventCount, 1);
+  assert.equal(result.eventDays, 3);
+  assert.equal(result.locations[0].events, 1);
+  assert.equal(result.services[0].events, 1);
+  assert.deepEqual(data, before);
+});

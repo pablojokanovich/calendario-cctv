@@ -31,7 +31,7 @@ export function Statistics({ events, loading }: { events: EventRecord[]; loading
     </select></label>{period === "custom" && <><label>Desde<input type="date" aria-label="Estadísticas desde" value={from} onChange={event => setFrom(event.target.value)} /></label><label>Hasta<input type="date" aria-label="Estadísticas hasta" value={to} onChange={event => setTo(event.target.value)} /></label></>}</div>
     {data.invalidRange && <p className="error-message" role="alert">La fecha de inicio debe ser anterior o igual a la fecha de fin.</p>}
     {loading ? <p role="status" className="statistics-empty">Cargando estadísticas...</p> : <>
-      <dl className="statistics-totals"><div><dt>Eventos</dt><dd>{data.eventCount}</dd></div><div><dt>Jornadas de evento</dt><dd>{data.eventDays}</dd></div><div><dt>Operadores asignados</dt><dd>{data.operators.length}</dd></div><div><dt>Locaciones</dt><dd>{data.locations.length}</dd></div></dl>
+      <dl className="statistics-totals"><div><dt>Eventos</dt><dd>{data.eventCount}</dd></div><div><dt>Jornadas de evento</dt><dd>{data.eventDays}</dd></div><div><dt>Freelancers asignados</dt><dd>{data.operators.length}</dd></div><div><dt>Locaciones</dt><dd>{data.locations.length}</dd></div></dl>
       {!data.eventCount ? <div className="statistics-empty"><BarChart3 size={28} /><h3>No hay eventos en este período</h3></div> : <div className="statistics-rankings">
         <Ranking title="Por operador" rows={data.operators} color="#d71920" operator />
         <Ranking title="Por locación" rows={data.locations} color="#087eac" />

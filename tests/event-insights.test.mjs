@@ -25,7 +25,7 @@ test("historical operator aliases keep different Pablos and Estebans separate", 
   const groups = [
     ["Giuliana Caroli", "Giuli", "Giuliana", "Giuliana Caroli Carou"],
     ["Macarena Bultri", "Maca"], ["Maximiliano Bultri", "Maxi", "Maxi Bultri"],
-    ["Fiorella Farias", "Fiore", "Fiorella"], ["Leandro", "Lean"],
+    ["Fiorella Farias", "Fiore", "Fiorella"], ["Leandro Martinez", "Lean", "Leandro"],
     ["Pablo Jokanovich", "Pablo", "Pablo J.", "Pablo Joka"],
     ["Pablo Daniel Nami", "Pablo Nami"], ["Noelia Arvallo", "NOE"], ["Franco Hevia", "Hevia"],
     ["Leila Desiree Sucari", "Leila", "Leila Sucari"],
@@ -33,7 +33,8 @@ test("historical operator aliases keep different Pablos and Estebans separate", 
   for (const [canonical, ...aliases] of groups) {
     for (const alias of aliases) assert.equal(canonicalOperatorName(alias), canonical);
   }
-  for (const unchanged of ["Malen", "Marcelo", "Adro", "Pao", "Esteban", "Esteban Santamarina", "Camila Garcia", "constructor"]) {
+  assert.equal(canonicalOperatorName("Esteban"), "Esteban Santamarina");
+  for (const unchanged of ["Malen", "Marcelo", "Adro", "Pao", "Esteban Santamarina", "Camila Garcia", "constructor"]) {
     assert.equal(canonicalOperatorName(unchanged), unchanged);
   }
 });

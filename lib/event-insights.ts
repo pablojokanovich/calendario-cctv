@@ -11,7 +11,7 @@ const operatorAliases: Record<string, string> = {
   maca: "Macarena Bultri", "macarena bultri": "Macarena Bultri",
   maxi: "Maximiliano Bultri", "maxi bultri": "Maximiliano Bultri", "maximiliano bultri": "Maximiliano Bultri",
   fiore: "Fiorella Farias", fiorella: "Fiorella Farias", "fiorella farias": "Fiorella Farias",
-  lean: "Leandro", leandro: "Leandro",
+  lean: "Leandro Martinez", leandro: "Leandro Martinez", "leandro martinez": "Leandro Martinez",
   pablo: "Pablo Jokanovich", "pablo j.": "Pablo Jokanovich", "pablo j": "Pablo Jokanovich", "pablo joka": "Pablo Jokanovich", "pablo jokanovich": "Pablo Jokanovich",
   "pablo nami": "Pablo Daniel Nami", "pablo daniel nami": "Pablo Daniel Nami",
   noe: "Noelia Arvallo", "noelia arvallo": "Noelia Arvallo",
@@ -22,6 +22,7 @@ const operatorAliases: Record<string, string> = {
   fernando: "Fernando Standke", "fernando standke": "Fernando Standke",
   barbara: "Barbara Sotelo", "barbara sotelo": "Barbara Sotelo",
   "esteban g.": "Esteban Gomez", "esteban g": "Esteban Gomez", "esteban gomez": "Esteban Gomez",
+  esteban: "Esteban Santamarina", "esteban santamarina": "Esteban Santamarina",
   carla: "Carla Vazquez", "carla vazquez": "Carla Vazquez",
   guido: "Guido Montini", "guido montini": "Guido Montini",
 };
