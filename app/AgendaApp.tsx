@@ -88,7 +88,7 @@ const operatorOptions = [...new Set([
   "Carla Vazquez", "Barbara Sotelo", "Esteban Gomez", "Jeronimo Catalano", "Esteban Santamarina",
   "Noelia Arvallo", "Guido Montini",
 ].map(canonicalOperatorName))];
-const sheetColumnWidths = [76, 130, 110, 98, 98, 98, 120, 150, 165, 185, 145, 150, 115, 112, 96, 164];
+const sheetColumnWidths = [76, 130, 110, 98, 98, 98, 120, 150, 165, 185, 145, 150, 112, 96, 164];
 const weekdays = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const fichaTabs = [["datos", "Datos"], ["salas", "Salas y operadores"], ["citaciones", "Citaciones"], ["documentos", "Documentos"]] as const;
 type Editing = { id: number | null; data: EventDraft; mode: "form" | "sheet"; dirty: boolean };
@@ -570,11 +570,11 @@ export default function AgendaApp() {
   }
 
   function exportExcel() {
-    const header = ["Nro de Orden", "Evento", "Lugar", "Armado", "Inicio", "Fin", "Sala", "Tipo de Servicio CCTV", "Director", "Director confirmado", "Camarógrafos", "Camarógrafos confirmados", "Volante", "Volante confirmado", "vMix", "vMix confirmado", "Tipo de vMix", "Estado"];
+    const header = ["Nro de Orden", "Evento", "Lugar", "Armado", "Inicio", "Fin", "Sala", "Tipo de Servicio CCTV", "Director", "Director confirmado", "Camarógrafos", "Camarógrafos confirmados", "Volante", "Volante confirmado", "vMix", "vMix confirmado", "Estado"];
     const sheetRows = events.flatMap(event => event.assignments.map(a => [
       event.orderNumber, event.eventName, event.location, formatShort(event.setupDate), formatShort(event.startDate), formatShort(event.endDate), a.salon, a.serviceType,
       ...roles.flatMap(role => [a.crew[role].filter(p => p.name.trim()).map(p => `${p.name}${p.dates !== undefined ? ` [${operatorDayLabel(event, p)}]` : ""}`).join("; "), a.crew[role].filter(p => p.name.trim() && operatorDates(event, p).length).map(p => `${p.name}: ${p.confirmed ? "SI" : "NO"}`).join("; ")]),
-      a.vmixType, a.status,
+      a.status,
     ]));
     const usedColors = new Set(events.map(event => event.color));
     const colorStyles = Array.from(usedColors).map(color => `<Style ss:ID="${excelStyleId(color)}"><Font ss:FontName="Arial" ss:Size="10" ss:Color="${darkColor(color) ? "#FFFFFF" : "#000000"}"/><Interior ss:Color="${color}" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>`).join("");
@@ -787,7 +787,7 @@ ${calendario}
           <div className="sheet-scroll" tabIndex={0} role="region" aria-label="Planilla editable con desplazamiento horizontal">
             <table>
               <colgroup>{sheetColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}</colgroup>
-              <thead><tr>{["Orden", "Evento", "Lugar", "Armado", "Inicio", "Fin", "Sala", "Servicio CCTV", "Director", "Camarógrafos", "Volante", "vMix", "Tipo de vMix", "Estado", "Día", "Acciones"].map((head, i) => <th key={head} scope="col" className={i < 2 ? `pinned pinned-${i}` : ""}>{head}{i >= 8 && i <= 11 && <small>Nombre / Confirmado</small>}</th>)}</tr></thead>
+              <thead><tr>{["Orden", "Evento", "Lugar", "Armado", "Inicio", "Fin", "Sala", "Servicio CCTV", "Director", "Camarógrafos", "Volante", "vMix", "Estado", "Día", "Acciones"].map((head, i) => <th key={head} scope="col" className={i < 2 ? `pinned pinned-${i}` : ""}>{head}{i >= 8 && i <= 11 && <small>Nombre / Confirmado</small>}</th>)}</tr></thead>
               <tbody>{rows.map(({ event, assignment }) => <tr key={`${event.id}-${assignment.id}`} className={editing?.id === event.id && editing.mode === "sheet" ? "editing-row" : ""} style={{ "--event-color": event.color, "--event-ink": darkColor(event.color) ? "#fff" : "#000", colorScheme: darkColor(event.color) ? "dark" : "light" } as CSSProperties}>
                 <td className="pinned pinned-0 order-cell">{sheetField(event, "orderNumber", "Orden")}<input type="color" className="event-color" aria-label={`Color · ${event.orderNumber}`} value={event.color} onChange={e => changeSheet(event, data => ({ ...data, color: e.target.value }))} /></td>
                 <td className="pinned pinned-1">{sheetField(event, "eventName", "Evento")}</td>
@@ -798,7 +798,6 @@ ${calendario}
                 <td>{assignmentField(event, assignment, "salon", "Sala")}</td>
                 <td>{assignmentField(event, assignment, "serviceType", "Servicio")}</td>
                 {roles.map(role => <td key={role}><CrewEditor compact key={role} event={event} role={role} people={assignment.crew[role]} onFocus={() => { beginEdit(event, "sheet"); }} onChange={people => changeSheetAssignment(event, assignment.id, { crew: { ...assignment.crew, [role]: people } })} /></td>)}
-                <td>{assignmentField(event, assignment, "vmixType", "Tipo de vMix")}</td>
                 <td><select aria-label={`Estado · ${event.orderNumber}`} value={assignment.status} onChange={e => changeSheetAssignment(event, assignment.id, { status: e.target.value })}>{statuses.map(s => <option key={s}>{s}</option>)}</select></td>
                 <td><select aria-label={`Día · ${event.orderNumber}`} value={event.phase} onChange={e => changeSheet(event, data => ({ ...data, phase: e.target.value as EventDraft["phase"] }))}>{phases.map(p => <option key={p}>{p}</option>)}</select></td>
                 <td><div className="row-actions">

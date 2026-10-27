@@ -43,6 +43,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
   const tomorrow = dateIso(nextDate);
   const fixture = normalizeEvent({ ...newDraft(), id: 7, orderNumber: "0999", eventName: "Congreso", location: "CEC", startDate: today, endDate: tomorrow });
   fixture.assignments[0].salon = "Sala inicial";
+  fixture.assignments[0].vmixType = "Streaming existente";
   fixture.assignments[0].crew.cameras = [{ id: "cam-a", name: "Lucas", confirmed: false }, { id: "cam-b", name: "Esteban", confirmed: false }];
   fixture.assignments[0].crew.director = [{ id: "dir-a", name: "Maca", confirmed: false }];
   fixture.assignments[0].crew.vmix = [{ id: "vmix-a", name: "Pablo", confirmed: false }];
@@ -180,6 +181,14 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     assert.equal(requests.length, 0, "Copy must not save or send the event");
     await click("Cerrar ficha");
     await click("Planilla");
+    const sheet = root().findByProps({ className: "sheet-panel" });
+    const headings = sheet.findAllByType("th").map(node => node.children.filter(child => typeof child === "string").join(""));
+    assert(!headings.includes("Tipo de vMix"));
+    assert(headings.includes("vMix"));
+    assert.equal(headings.length, 15);
+    assert.equal(sheet.findAllByType("col").length, 15);
+    for (const row of sheet.findAllByType("tbody")[0].findAllByType("tr")) assert.equal(row.findAllByType("td").length, 15);
+    assert.equal(input("Tipo de vMix · 0999"), undefined);
     const sheetSala = input("Sala · 0999");
     await act(async () => sheetSala.props.onFocus());
     for (const char of " completa") {
@@ -195,6 +204,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     assert.equal(requests.at(-1).method, "PUT");
     assert.equal(requests.at(-1).url, "/api/events/7");
     assert.equal(saved.assignments[0].salon, "Sala inicial completa");
+    assert.equal(saved.assignments[0].vmixType, "Streaming existente");
     assert.deepEqual(saved.assignments[0].crew.cameras.map(p => p.confirmed), [true, false]);
     assert.equal(saved.assignments[0].crew.director[0].confirmed, true);
     assert.equal(saved.assignments[0].crew.vmix[0].confirmed, true);
