@@ -6,6 +6,7 @@ import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, 
 import { EventDocuments } from "./EventDocuments";
 import { EventShare } from "./EventShare";
 import { calendarLocationColor, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
+import { createMonthScrollGesture } from "../lib/calendar-scroll";
 import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
@@ -250,6 +251,8 @@ export default function AgendaApp() {
   const savingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const focusNextForm = useRef(false);
+  const calendarRef = useRef<HTMLElement>(null);
+  const scrollMonthDirection = useRef(0);
 
   async function loadEvents() {
     setLoading(true);
@@ -273,6 +276,58 @@ export default function AgendaApp() {
   }
 
   useEffect(() => { void loadEvents(); }, []);
+  useEffect(() => {
+    const calendar = calendarRef.current;
+    if (!calendar || view !== "calendar" || search.trim() || editing || loading) return;
+    const gesture = createMonthScrollGesture();
+    function move(delta: number, event: WheelEvent | TouchEvent) {
+      const result = gesture(delta, window.scrollY <= 2, calendar!.getBoundingClientRect().bottom <= window.innerHeight + 2, performance.now());
+      if (result.consume && event.cancelable) event.preventDefault();
+      if (result.month) {
+        scrollMonthDirection.current = result.month;
+        setMonth(current => new Date(current.getFullYear(), current.getMonth() + result.month, 1));
+      }
+    }
+    function wheel(event: WheelEvent) {
+      if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+      move(event.deltaY * scale, event);
+    }
+    let touch: { x: number; y: number } | null = null;
+    function touchStart(event: TouchEvent) {
+      touch = event.touches.length === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+    }
+    function touchMove(event: TouchEvent) {
+      if (!touch || event.touches.length !== 1) { touch = null; return; }
+      const next = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+      const deltaX = touch.x - next.x, deltaY = touch.y - next.y;
+      touch = next;
+      if (Math.abs(deltaY) > Math.abs(deltaX)) move(deltaY, event);
+    }
+    function touchEnd() { touch = null; }
+    calendar.addEventListener("wheel", wheel, { passive: false });
+    calendar.addEventListener("touchstart", touchStart, { passive: true });
+    calendar.addEventListener("touchmove", touchMove, { passive: false });
+    calendar.addEventListener("touchend", touchEnd);
+    calendar.addEventListener("touchcancel", touchEnd);
+    return () => {
+      calendar.removeEventListener("wheel", wheel);
+      calendar.removeEventListener("touchstart", touchStart);
+      calendar.removeEventListener("touchmove", touchMove);
+      calendar.removeEventListener("touchend", touchEnd);
+      calendar.removeEventListener("touchcancel", touchEnd);
+    };
+  }, [view, search, editing, loading]);
+  useEffect(() => {
+    const direction = scrollMonthDirection.current;
+    scrollMonthDirection.current = 0;
+    if (!direction) return;
+    const frame = window.requestAnimationFrame(() => {
+      const calendar = calendarRef.current;
+      if (calendar) window.scrollTo({ top: direction > 0 ? 0 : Math.max(0, window.scrollY + calendar.getBoundingClientRect().bottom - window.innerHeight), behavior: "instant" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [month]);
   useEffect(() => {
     let stored: string | null = null;
     try { stored = localStorage.getItem(themeKey); } catch {}
@@ -561,7 +616,7 @@ ${calendario}
     </li>)}</ul>;
   }
 
-  return <main className={`app-shell${editing?.mode === "form" ? " has-editor" : ""}`}>
+  return <main className={`app-shell${view === "calendar" && !search.trim() ? " calendar-view" : ""}${editing?.mode === "form" ? " has-editor" : ""}`}>
     <datalist id="operators">{operatorOptions.map(name => <option key={name} value={name} />)}</datalist>
     <header className="toolbar">
       <div className="brand"><img className="brand-logo" src="/congress-rental-logo.jpg" alt="Congress Rental" width={44} height={44} /><div><p>Congress Rental · CCTV</p><h1>Agenda operativa</h1></div></div>
@@ -578,7 +633,7 @@ ${calendario}
     <div className="view-toolbar">
       {view === "calendar" ? <div className="month-navigation">
         <IconButton label="Mes anterior" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={20} /></IconButton>
-        <h2>{monthLabel(month)}</h2>
+        <h2 aria-live="polite" aria-atomic="true">{monthLabel(month)}</h2>
         <IconButton label="Mes siguiente" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
         <button type="button" className="today-button" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoy</button>
       </div> : <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2>}
@@ -665,7 +720,7 @@ ${calendario}
           })}</ol>
           {!calendarEvents.length && <p className="overview-empty">{loading ? "Cargando eventos..." : "No hay eventos vigentes este mes."}</p>}
         </aside>
-        <section className="calendar-panel" aria-label="Calendario mensual">
+        <section ref={calendarRef} className="calendar-panel" aria-label="Calendario mensual">
         <div className="calendar-inner">
           <div className="weekday-row">{weekdays.map((day, index) => <span key={day} className={index >= 5 ? "weekend-head" : ""}>{day}</span>)}</div>
           <div className="calendar-grid">{monthDays.map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
