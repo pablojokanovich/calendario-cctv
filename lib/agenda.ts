@@ -76,8 +76,8 @@ export function eventCrewText(event: EventDraft): string {
     lines.push("", line(room.salon) || `Sala ${index + 1} (sin nombre)`);
     if (line(room.serviceType)) lines.push(`Servicio: ${line(room.serviceType)}`);
     for (const role of roles) {
-      const people = room.crew[role].filter(person => line(person.name));
-      lines.push(`- ${roleLabels[role]}: ${people.length ? people.map(person => `${line(person.name)} (${person.confirmed ? "confirmado" : "por confirmar"})${person.dates !== undefined ? ` [${operatorDayLabel(event, person)}]` : ""}`).join(", ") : "Sin asignar"}`);
+      const people = room.crew[role].filter(person => line(person.name) && (person.dates === undefined || operatorDates(event, person).length > 0));
+      if (people.length) lines.push(`- ${roleLabels[role]}: ${people.map(person => `${line(person.name)}${person.dates !== undefined ? ` [${operatorDayLabel(event, person)}]` : ""}`).join(", ")}`);
     }
   }
   return lines.join("\n");

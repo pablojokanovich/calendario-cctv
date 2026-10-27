@@ -28,11 +28,12 @@ test("daily replacements survive persistence, retain confirmation, and appear in
   assert.equal(operatorWorksOn(room.crew.cameras[0], "2026-10-31"), false);
   assert.equal(operatorWorksOn(room.crew.cameras[1], "2026-10-31"), true);
   assert.deepEqual(crewSummary(event), { total: 2, confirmed: 1, pending: 1 });
-  assert.ok(eventCrewText(event).includes("Esteban (por confirmar) [31/10/2026]"));
+  assert.ok(eventCrewText(event).includes("Esteban [31/10/2026]"));
   room.crew.cameras[1].dates = [];
   assert.deepEqual(operatorDates(event, room.crew.cameras[1]), []);
   assert.deepEqual(crewSummary(event), { total: 1, confirmed: 1, pending: 0 });
-  assert.ok(eventCrewText(event).includes("Sin días asignados"));
+  assert.ok(!eventCrewText(event).includes("Esteban"));
+  assert.ok(!eventCrewText(event).includes("Sin días asignados"));
 });
 
 test("custom assignments do not silently expand when event dates change; general assignments do", () => {
