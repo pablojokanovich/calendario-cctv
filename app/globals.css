@@ -470,3 +470,6 @@ th.pinned { z-index: 4; }
 .operator-days-options input[type="checkbox"] { flex: 0 0 15px; width: 15px; height: 15px; min-height: 0; margin: 2px 0 0; }
 .operator-days-options span { min-width: 0; overflow-wrap: anywhere; }
 .operator-days-options small { display: block; font-size: 10px; opacity: .75; }
+.calendar-timeline { min-width: 0; width: 100%; max-width: 1500px; margin-inline: auto; overflow-anchor: none; }
+.calendar-timeline .calendar-panel + .calendar-panel { margin-top: 24px; }
+.calendar-month-title { margin: 0; padding: 14px 16px; font-size: 18px; text-transform: capitalize; border-bottom: 1px solid var(--line); }

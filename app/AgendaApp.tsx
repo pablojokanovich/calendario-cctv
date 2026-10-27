@@ -1,7 +1,7 @@
 "use client";
 import type { Holiday } from "../lib/holidays";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, MapPin } from "lucide-react";
 import { EventDocuments } from "./EventDocuments";
 import { EventShare } from "./EventShare";
@@ -234,6 +234,7 @@ export default function AgendaApp() {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [view, setView] = useState<"calendar" | "sheet">("calendar");
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [loadedMonths, setLoadedMonths] = useState(() => [month]);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [message, setMessage] = useState("Cargando agenda compartida...");
   const [error, setError] = useState("");
@@ -253,7 +254,34 @@ export default function AgendaApp() {
   const formRef = useRef<HTMLFormElement>(null);
   const focusNextForm = useRef(false);
   const calendarRef = useRef<HTMLElement>(null);
-  const scrollMonthDirection = useRef(0);
+  const calendarAnchor = useRef<{ element: Element; top: number } | null>(null);
+  const visibleMonthAnchor = useRef<{ element: Element; top: number } | null>(null);
+  const calendarJump = useRef(false);
+
+  function jumpToMonth(date: Date) {
+    calendarJump.current = true;
+    setMonth(date);
+    setLoadedMonths([date]);
+  }
+
+  useLayoutEffect(() => {
+    const anchor = calendarAnchor.current;
+    calendarAnchor.current = null;
+    if (anchor?.element.isConnected) window.scrollBy({ top: anchor.element.getBoundingClientRect().top - anchor.top, behavior: "instant" });
+    if (calendarJump.current && calendarRef.current) {
+      calendarJump.current = false;
+      window.scrollTo({ top: Math.max(0, window.scrollY + calendarRef.current.getBoundingClientRect().top - 90), behavior: "instant" });
+    }
+  }, [loadedMonths]);
+
+  useLayoutEffect(() => {
+    const anchor = visibleMonthAnchor.current;
+    visibleMonthAnchor.current = null;
+    if (anchor?.element.isConnected) {
+      const delta = anchor.element.getBoundingClientRect().top - anchor.top;
+      if (Math.abs(delta) > 1) window.scrollBy({ top: delta, behavior: "instant" });
+    }
+  }, [month]);
 
   async function loadEvents() {
     setLoading(true);
@@ -281,12 +309,39 @@ export default function AgendaApp() {
     const calendar = calendarRef.current;
     if (!calendar || view !== "calendar" || search.trim() || editing || loading) return;
     const gesture = createMonthScrollGesture();
+    let extending = false;
+    let frame = 0;
+    function updateTimeline() {
+      frame = 0;
+      const sections = Array.from(calendar!.querySelectorAll<HTMLElement>("[data-calendar-month]"));
+      const visible = sections.find(section => section.getBoundingClientRect().bottom > 180);
+      if (visible) {
+        const date = parseDate(visible.dataset.calendarMonth!);
+        if (dateIso(month) !== dateIso(date)) {
+          visibleMonthAnchor.current = { element: visible, top: visible.getBoundingClientRect().top };
+          setMonth(date);
+        }
+      }
+      if (!extending && calendar!.getBoundingClientRect().bottom < window.innerHeight + 350) {
+        extending = true;
+        setLoadedMonths(current => {
+          const last = current[current.length - 1];
+          return [...current, new Date(last.getFullYear(), last.getMonth() + 1, 1)];
+        });
+      }
+    }
+    function scroll() {
+      if (!frame) frame = window.requestAnimationFrame(updateTimeline);
+    }
     function move(delta: number, event: WheelEvent | TouchEvent) {
-      const result = gesture(delta, window.scrollY <= 2, calendar!.getBoundingClientRect().bottom <= window.innerHeight + 2, performance.now());
+      if (delta >= 0 || extending) return;
+      const first = calendar!.querySelector("[data-calendar-month]");
+      const result = gesture(delta, !!first && first.getBoundingClientRect().top >= 90, false, performance.now());
       if (result.consume && event.cancelable) event.preventDefault();
       if (result.month) {
-        scrollMonthDirection.current = result.month;
-        setMonth(current => new Date(current.getFullYear(), current.getMonth() + result.month, 1));
+        extending = true;
+        calendarAnchor.current = { element: first!, top: first!.getBoundingClientRect().top };
+        setLoadedMonths(current => [new Date(current[0].getFullYear(), current[0].getMonth() - 1, 1), ...current]);
       }
     }
     function wheel(event: WheelEvent) {
@@ -311,24 +366,17 @@ export default function AgendaApp() {
     calendar.addEventListener("touchmove", touchMove, { passive: false });
     calendar.addEventListener("touchend", touchEnd);
     calendar.addEventListener("touchcancel", touchEnd);
+    window.addEventListener("scroll", scroll, { passive: true });
     return () => {
+      window.removeEventListener("scroll", scroll);
+      window.cancelAnimationFrame(frame);
       calendar.removeEventListener("wheel", wheel);
       calendar.removeEventListener("touchstart", touchStart);
       calendar.removeEventListener("touchmove", touchMove);
       calendar.removeEventListener("touchend", touchEnd);
       calendar.removeEventListener("touchcancel", touchEnd);
     };
-  }, [view, search, editing, loading]);
-  useEffect(() => {
-    const direction = scrollMonthDirection.current;
-    scrollMonthDirection.current = 0;
-    if (!direction) return;
-    const frame = window.requestAnimationFrame(() => {
-      const calendar = calendarRef.current;
-      if (calendar) window.scrollTo({ top: direction > 0 ? 0 : Math.max(0, window.scrollY + calendar.getBoundingClientRect().bottom - window.innerHeight), behavior: "instant" });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [month]);
+  }, [view, search, editing, loading, loadedMonths, month]);
   useEffect(() => {
     let stored: string | null = null;
     try { stored = localStorage.getItem(themeKey); } catch {}
@@ -395,16 +443,17 @@ export default function AgendaApp() {
     return () => lifecycle.abort();
   }, []);
 
-  const monthDays = useMemo(() => {
-    const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  function daysForMonth(value: Date) {
+    const first = new Date(value.getFullYear(), value.getMonth(), 1);
     const leading = (first.getDay() + 6) % 7;
-    const count = Math.ceil((leading + new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()) / 7) * 7;
+    const count = Math.ceil((leading + new Date(value.getFullYear(), value.getMonth() + 1, 0).getDate()) / 7) * 7;
     return Array.from({ length: count }, (_, i) => {
-      const date = new Date(month.getFullYear(), month.getMonth(), i - leading + 1);
-      return { date, iso: dateIso(date), inMonth: date.getMonth() === month.getMonth() };
+      const date = new Date(value.getFullYear(), value.getMonth(), i - leading + 1);
+      return { date, iso: dateIso(date), inMonth: date.getMonth() === value.getMonth() };
     });
-  }, [month]);
-  const holidayYears = [...new Set(monthDays.map(day => day.date.getFullYear()))].join(",");
+  }
+  const monthDays = daysForMonth(month);
+  const holidayYears = [...new Set(loadedMonths.flatMap(value => daysForMonth(value).map(day => day.date.getFullYear())))].join(",");
   useEffect(() => {
     const controller = new AbortController();
     setHolidayError("");
@@ -635,10 +684,10 @@ ${calendario}
     </header>
     <div className="view-toolbar">
       {view === "calendar" ? <div className="month-navigation">
-        <IconButton label="Mes anterior" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={20} /></IconButton>
+        <IconButton label="Mes anterior" onClick={() => jumpToMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={20} /></IconButton>
         <h2 aria-live="polite" aria-atomic="true">{monthLabel(month)}</h2>
-        <IconButton label="Mes siguiente" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
-        <button type="button" className="today-button" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoy</button>
+        <IconButton label="Mes siguiente" onClick={() => jumpToMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
+        <button type="button" className="today-button" onClick={() => jumpToMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoy</button>
       </div> : <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2>}
       <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || documentBusy || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
@@ -712,7 +761,7 @@ ${calendario}
 
     <section className="workspace">
       {search.trim() ? <section className="search-results" aria-label="Resultados de búsqueda"><h2>Resultados de búsqueda <span className="count">{searchResults.length}</span></h2>
-        <ul>{searchResults.map(event => <li key={event.id}><button type="button" className="search-result" style={{ "--event-color": event.color } as CSSProperties} disabled={documentBusy} onClick={() => { if (beginEdit(event, "form")) { const date = parseDate(event.setupDate || event.startDate); setMonth(new Date(date.getFullYear(), date.getMonth(), 1)); } }}>
+        <ul>{searchResults.map(event => <li key={event.id}><button type="button" className="search-result" style={{ "--event-color": event.color } as CSSProperties} disabled={documentBusy} onClick={() => { if (beginEdit(event, "form")) { const date = parseDate(event.setupDate || event.startDate); jumpToMonth(new Date(date.getFullYear(), date.getMonth(), 1)); } }}>
           <span className="search-result-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span>{event.location}</span><span>{formatShort(event.setupDate || event.startDate)} — {formatShort(event.endDate)}</span><span className="search-result-rooms">{event.assignments.map(room => room.salon).filter(Boolean).join(" · ")}</span>{event.endDate < todayIso && <small>Finalizado</small>}
         </button></li>)}</ul>{!searchResults.length && <p className="empty-state">No se encontraron eventos.</p>}
       </section> : view === "calendar" ? <div className="calendar-layout">
@@ -730,10 +779,12 @@ ${calendario}
           })}</ol>
           {!calendarEvents.length && <p className="overview-empty">{loading ? "Cargando eventos..." : locationFilter ? "No hay eventos vigentes este mes en esta locación." : "No hay eventos vigentes este mes."}</p>}
         </aside>
-        <section ref={calendarRef} className="calendar-panel" aria-label="Calendario mensual">
+        <section ref={calendarRef} className="calendar-timeline" aria-label="Calendario mensual">
+        {loadedMonths.map(value => <section className="calendar-panel" key={dateIso(value)} data-calendar-month={dateIso(value)} aria-label={monthLabel(value)}>
+        <h3 className="calendar-month-title">{monthLabel(value)}</h3>
         <div className="calendar-inner">
           <div className="weekday-row">{weekdays.map((day, index) => <span key={day} className={index >= 5 ? "weekend-head" : ""}>{day}</span>)}</div>
-          <div className="calendar-grid">{monthDays.map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
+          <div className="calendar-grid">{daysForMonth(value).map(day => <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
             <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time></div>
             {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
             {locationEvents.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>
@@ -759,7 +810,7 @@ ${calendario}
               </button>)}
           </article>)}</div>
         </div>
-      </section></div> : <section className="sheet-panel" aria-label="Planilla de eventos">
+      </section>)}</section></div> : <section className="sheet-panel" aria-label="Planilla de eventos">
         <fieldset disabled={saving || documentBusy}>
           <div className="sheet-scroll" tabIndex={0} role="region" aria-label="Planilla editable con desplazamiento horizontal">
             <table>
