@@ -2,12 +2,13 @@
 import type { Holiday } from "../lib/holidays";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { CalendarDays, Table2, BarChart3, Users, Archive, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, MapPin } from "lucide-react";
+import { CalendarDays, Table2, BarChart3, Users, Archive, FileSpreadsheet, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, MapPin } from "lucide-react";
 import { EventDocuments } from "./EventDocuments";
 import { EventShare } from "./EventShare";
 import { Statistics } from "./Statistics";
 import { OperatorAgenda } from "./OperatorAgenda";
 import { BackupPanel } from "./BackupPanel";
+import { EventPersonnelExport } from "./EventPersonnelExport";
 import { canonicalServiceName, serviceOptions } from "../lib/services";
 import { canonicalOperatorName, calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
@@ -252,6 +253,7 @@ export default function AgendaApp() {
   const [locationFilter, setLocationFilter] = useState("");
   const [documentBusy, setDocumentBusy] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [personnelExport, setPersonnelExport] = useState<EventRecord | null>(null);
   const [fichaTab, setFichaTab] = useState("datos");
   const [citationsMounted, setCitationsMounted] = useState(false);
   const savingRef = useRef(false);
@@ -800,6 +802,7 @@ ${calendario}
                 <td><select aria-label={`Estado · ${event.orderNumber}`} value={assignment.status} onChange={e => changeSheetAssignment(event, assignment.id, { status: e.target.value })}>{statuses.map(s => <option key={s}>{s}</option>)}</select></td>
                 <td><select aria-label={`Día · ${event.orderNumber}`} value={event.phase} onChange={e => changeSheet(event, data => ({ ...data, phase: e.target.value as EventDraft["phase"] }))}>{phases.map(p => <option key={p}>{p}</option>)}</select></td>
                 <td><div className="row-actions">
+                  {assignment.id === event.assignments[0]?.id && <IconButton label={`Exportar Excel de personal ${event.orderNumber}`} onClick={() => setPersonnelExport(structuredClone(event))}><FileSpreadsheet size={16} /></IconButton>}
                   <IconButton label={`Editar evento ${event.orderNumber} en planilla`} onClick={() => beginEdit(event, "sheet")}><Pencil size={16} /></IconButton>
                   <IconButton label={`Orden de servicio y detalles ${event.orderNumber}`} onClick={() => beginEdit(event, "form")}><FileText size={16} /></IconButton>
                   <a className="sheet-citation-link" href={citationLink(event, assignment)} target="_blank" rel="noreferrer" title={`Crear citaciones para ${event.orderNumber}`}><ExternalLink size={15} />Citaciones</a>
@@ -814,6 +817,7 @@ ${calendario}
         </fieldset>
       </section>}
     </section>
+    {personnelExport && <EventPersonnelExport event={personnelExport} onClose={() => setPersonnelExport(null)} />}
     {backupOpen && <BackupPanel theme={theme} catalogue={{ operators: operatorOptions, services: serviceOptions }} onClose={() => setBackupOpen(false)} onBusyChange={setDocumentBusy} onRestored={async () => { setEditing(null); await loadEvents(); }} onTheme={next => { setTheme(next); document.documentElement.dataset.theme = next; try { localStorage.setItem(themeKey, next); } catch {} }} />}
   </main>;
 }

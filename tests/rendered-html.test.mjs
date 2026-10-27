@@ -24,7 +24,7 @@ async function loadApp() {
     }).outputText;
     return "data:text/javascript;base64," + Buffer.from(output).toString("base64");
   }
-  for (const name of ["EventDocuments", "EventShare", "Statistics", "OperatorAgenda", "BackupPanel"]) modules[`./${name}`] = await compile(name);
+  for (const name of ["EventDocuments", "EventShare", "Statistics", "OperatorAgenda", "BackupPanel", "EventPersonnelExport"]) modules[`./${name}`] = await compile(name);
   return (await import(await compile("AgendaApp"))).default;
 }
 

@@ -523,3 +523,14 @@ th.pinned { z-index: 4; }
 .backup-plan, .backup-status { margin: 14px 0; font-size: 13px; overflow-wrap: anywhere; }
 .backup-dialog progress { width: 100%; margin-top: 16px; accent-color: var(--accent); }
 @media (max-width: 760px) { .individual-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; } .toolbar .segmented { min-width: 0; max-width: 100%; } }
+.personnel-dialog { width: 1280px; }
+.personnel-dialog .backup-heading p { color: var(--ink-soft); font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
+.personnel-preview { overflow-x: auto; margin: 18px 0; border: 1px solid var(--line); }
+.personnel-preview table { width: 100%; min-width: 1200px; table-layout: fixed; border-collapse: collapse; }
+.personnel-preview th, .personnel-preview td { text-align: center; font-size: 11px; padding: 8px 6px; white-space: normal; overflow-wrap: anywhere; }
+.personnel-preview th { position: static; background: #d71920; color: #fff; }
+.personnel-preview th:nth-child(2), .personnel-preview th:nth-child(3), .personnel-preview th:nth-child(9) { width: 15%; }
+.personnel-preview th:nth-child(1), .personnel-preview th:nth-child(6), .personnel-preview th:nth-child(7), .personnel-preview th:nth-child(8), .personnel-preview th:nth-child(11) { width: 6%; }
+.personnel-preview td:first-child { background: #d71920; color: #fff; font-weight: 700; }
+.personnel-preview td:last-child { background: #ffff00; color: #111; }
+.personnel-preview td input { vertical-align: middle; }
