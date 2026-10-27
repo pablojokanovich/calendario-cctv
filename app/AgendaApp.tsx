@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEven
 import { CalendarDays, Table2, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText } from "lucide-react";
 import { EventDocuments } from "./EventDocuments";
 import { EventShare } from "./EventShare";
-import { eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
+import { calendarLocationColor, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
@@ -673,7 +673,7 @@ ${calendario}
             {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
             {events.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>
               <button type="button" className="event-chip" key={event.id} style={{ background: event.color, color: darkColor(event.color) ? "#fff" : "#111" }} onClick={() => beginEdit(event, "form")}>
-                <span className="calendar-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span className="calendar-location">{event.location}</span>
+                <span className="calendar-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span className="calendar-location" style={{ backgroundColor: calendarLocationColor(event.location) ?? "transparent", color: calendarLocationColor(event.location) ? "#fff" : "inherit" }}>{event.location}</span>
                 {event.assignments.map(assignment => <span className="calendar-room" key={assignment.id}>
                   <span className="calendar-room-name">{assignment.salon}</span><span className="calendar-service">{assignment.serviceType}</span>
                   {roles.map(role => {

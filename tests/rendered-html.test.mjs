@@ -75,6 +75,10 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     const calendarEvent = root().findAllByProps({ className: "event-chip" })[0];
     const textContent = node => typeof node === "string" ? node : node.children.map(textContent).join("");
     const calendarText = textContent(calendarEvent);
+    const locationBadge = calendarEvent.findByProps({ className: "calendar-location" });
+    assert.equal(locationBadge.children[0], "CEC");
+    assert.equal(locationBadge.props.style.backgroundColor, "#1d4ed8");
+    assert.equal(locationBadge.props.style.color, "#fff");
     assert.ok(textContent(root().findByProps({ className: "holiday-label" })).includes("Feriado de prueba"));
     const overviewText = textContent(root().findByProps({ className: "event-overview-list" }));
     assert.ok(overviewText.includes("0 confirmados"));

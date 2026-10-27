@@ -4,6 +4,19 @@ export function normalizeSearchText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-AR").trim().replace(/\s+/g, " ");
 }
 
+const locationColors: Record<string, string> = {
+  "cec": "#1d4ed8",
+  "sheraton retiro": "#c81e1e",
+  "sheraton greenville": "#15803d",
+  "hilton": "#c04b00",
+  "ba ferial": "#087eac",
+  "rural": "#14532d",
+};
+
+export function calendarLocationColor(location: string): string | null {
+  return Object.hasOwn(locationColors, normalizeSearchText(location)) ? locationColors[normalizeSearchText(location)] : null;
+}
+
 export function eventMatchesSearch(event: EventDraft, query: string) {
   const text = normalizeSearchText([
     event.orderNumber, event.eventName, event.location, event.setupDate, event.startDate, event.endDate,
