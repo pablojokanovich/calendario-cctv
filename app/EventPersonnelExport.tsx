@@ -5,7 +5,7 @@ import type { EventRecord } from "../lib/agenda";
 import { personnelFilename, personnelHeaders, personnelRows, personnelWorkbook } from "../lib/personnel-export";
 
 export function EventPersonnelExport({ event, onClose }: { event: EventRecord; onClose: () => void }) {
-  const [lastDay, setLastDay] = useState(false);
+  const [lastDay, setLastDay] = useState(true);
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

@@ -17,7 +17,7 @@ export function personnelDateLabel(dates: string[]): string {
   return labels.length < 2 ? labels[0] ?? "" : `${labels.slice(0, -1).join(", ")} Y ${labels[labels.length - 1]}`;
 }
 
-export function personnelRows(event: EventRecord, dismantleOnLastDay = false): PersonnelRow[] {
+export function personnelRows(event: EventRecord, dismantleOnLastDay = true): PersonnelRow[] {
   const allDates = eventDates(event);
   return event.assignments.flatMap(room => {
     const people = new Map<string, { name: string; days: Map<string, Set<Role>> }>();
@@ -46,7 +46,7 @@ export function personnelRows(event: EventRecord, dismantleOnLastDay = false): P
       const dates = [...new Set(group.dates)].sort();
       const monthKey = dates[0].slice(0, 7);
       return { id: `${room.id}:${key}`, order: event.orderNumber, location: event.location.toLocaleUpperCase("es-AR"), room: room.salon.toLocaleUpperCase("es-AR"), month: months[Number(monthKey.slice(5)) - 1], monthKey,
-        dates, dateLabel: personnelDateLabel(dates), setup: dates.includes(event.setupDate), event: dates.some(date => date >= event.startDate && date <= event.endDate), dismantle: dismantleOnLastDay && dates.includes(event.endDate),
+        dates, dateLabel: personnelDateLabel(dates), setup: dates.includes(event.setupDate), event: dates.some(date => date >= event.startDate && date <= event.endDate), dismantle: dismantleOnLastDay && !!group.name && dates.includes(event.endDate),
         person: group.name.toLocaleUpperCase("es-AR"), position: group.position, days: group.name ? dates.length : null };
     });
   }).sort((a, b) => a.monthKey.localeCompare(b.monthKey));
