@@ -261,6 +261,7 @@ export default function AgendaApp() {
   const formRef = useRef<HTMLFormElement>(null);
   const focusNextForm = useRef(false);
   const calendarRef = useRef<HTMLElement>(null);
+  const viewToolbarRef = useRef<HTMLDivElement>(null);
   const visibleMonthAnchor = useRef<{ element: Element; top: number } | null>(null);
   const calendarJump = useRef(false);
 
@@ -345,6 +346,38 @@ export default function AgendaApp() {
       window.cancelAnimationFrame(frame);
     };
   }, [view, search, editing, loading, loadedMonths, month]);
+  useEffect(() => {
+    const calendar = calendarRef.current;
+    const toolbar = viewToolbarRef.current;
+    if (view !== "calendar" || !calendar || !toolbar) return;
+    let frame = 0;
+    // Keep headers inside their horizontal scroller while following page scroll.
+    function updateWeekdays() {
+      frame = 0;
+      const top = Math.max(0, toolbar!.getBoundingClientRect().bottom);
+      for (const row of calendar!.querySelectorAll<HTMLElement>(".weekday-row")) {
+        const inner = row.parentElement!.getBoundingClientRect();
+        const offset = Math.max(0, Math.min(top - inner.top, inner.height - row.offsetHeight));
+        row.style.setProperty("--weekday-offset", `${offset}px`);
+      }
+    }
+    function schedule() {
+      if (!frame) frame = window.requestAnimationFrame(updateWeekdays);
+    }
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null;
+    observer?.observe(toolbar);
+    observer?.observe(calendar);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    updateWeekdays();
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      observer?.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+      for (const row of calendar.querySelectorAll<HTMLElement>(".weekday-row")) row.style.removeProperty("--weekday-offset");
+    };
+  }, [view, search, loadedMonths]);
   useEffect(() => {
     let stored: string | null = null;
     try { stored = localStorage.getItem(themeKey); } catch {}
@@ -664,7 +697,7 @@ ${calendario}
         <button type="button" className="primary" disabled={loading || saving || documentBusy} onClick={() => beginEdit(null, "form")}><Plus size={18} />Nuevo evento</button>
       </div>
     </header>
-    <div className="view-toolbar">
+    <div className="view-toolbar" ref={viewToolbarRef}>
       {view === "calendar" ? <div className="month-navigation">
         <IconButton label="Mes anterior" onClick={() => jumpToMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={20} /></IconButton>
         <h2 aria-live="polite" aria-atomic="true">{monthLabel(month)}</h2>
