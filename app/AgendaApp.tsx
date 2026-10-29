@@ -9,6 +9,7 @@ import { Statistics } from "./Statistics";
 import { OperatorAgenda } from "./OperatorAgenda";
 import { BackupPanel } from "./BackupPanel";
 import { EventPersonnelExport } from "./EventPersonnelExport";
+import { calendarWeeks } from "../lib/calendar-layout";
 import { canonicalServiceName, serviceOptions } from "../lib/services";
 import { canonicalOperatorName, calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
@@ -444,6 +445,7 @@ export default function AgendaApp() {
   const todayIso = dateIso(new Date());
   const locationOptions = useMemo(() => calendarLocationOptions(events), [events]);
   const locationEvents = useMemo(() => locationFilter ? events.filter(event => locationFilterKey(event.location) === locationFilter) : events, [events, locationFilter]);
+  const calendarDisplayEvents = useMemo(() => locationEvents.map(event => editing?.id === event.id ? { ...editing.data, id: event.id } : event), [locationEvents, editing]);
   const searchResults = search.trim() ? (view === "calendar" ? locationEvents : events).filter(event => eventMatchesSearch(event, search)).sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate)) : [];
   const insightEvents = editing ? [...events.filter(event => event.id !== editing.id), { ...editing.data, id: editing.id ?? -999999 }] : events;
   const conflicts = findCrewConflicts(insightEvents).filter(conflict => conflict.periods.some(period => period.end >= todayIso) || conflict.left.eventId === editing?.id || conflict.right.eventId === editing?.id);
@@ -473,6 +475,14 @@ export default function AgendaApp() {
   }
   function beginEdit(event: EventRecord | null, mode: Editing["mode"]) {
     if (editing?.id === event?.id && editing?.mode === mode) return true;
+    if (event && editing?.id === event.id && editing.mode === "sheet" && mode === "form") {
+      if (documentBusy || savingRef.current) return false;
+      focusNextForm.current = true;
+      setFichaTab("datos");
+      setCitationsMounted(false);
+      setEditing(current => current ? { ...current, mode: "form" } : current);
+      return true;
+    }
     if (!canLeave()) return false;
     focusNextForm.current = mode === "form";
     setError("");
@@ -756,11 +766,14 @@ ${calendario}
         <h3 className="calendar-month-title">{monthLabel(value)}</h3>
         <div className="calendar-inner">
           <div className="weekday-row">{weekdays.map((day, index) => <span key={day} className={index >= 5 ? "weekend-head" : ""}>{day}</span>)}</div>
-          <div className="calendar-grid">{daysForMonth(value).map(day => day.iso < dateIso(value) ? <div key={day.iso} className="day-cell calendar-empty" aria-hidden="true" /> : <article key={day.iso} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
+          <div className="calendar-grid">{calendarWeeks(daysForMonth(value), calendarDisplayEvents, dateIso(value)).map(week => <div className="calendar-week" key={week.days[0].iso} style={{ gridTemplateRows: `auto ${week.laneCount ? `repeat(${week.laneCount}, auto) ` : ""}minmax(16px, 1fr)` }}>{week.days.map((day, column) => day.iso < dateIso(value) ? <div key={day.iso} className="day-cell calendar-empty" aria-hidden="true" style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} /> : <article key={day.iso} data-calendar-date={day.iso} style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
+            <div className="calendar-day-header">
             <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time></div>
             {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
-            {locationEvents.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)).map(event =>
-              <button type="button" className="event-chip" key={event.id} style={{ background: event.color, color: darkColor(event.color) ? "#fff" : "#111" }} onClick={() => beginEdit(event, "form")}>
+            </div>
+            {week.entries.filter(entry => entry.columns.includes(column)).map(({ event, lane, columns }) =>
+              <div className={`calendar-event ${columns.includes(column - 1) ? "continues-before" : ""} ${columns.includes(column + 1) ? "continues-after" : ""}`} key={event.id} data-calendar-event={event.id} style={{ gridRow: lane + 2 }}>
+              <button type="button" className="event-chip" style={{ background: event.color, color: darkColor(event.color) ? "#fff" : "#111" }} onClick={() => beginEdit(event, "form")}>
                 <span className="calendar-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span className="calendar-location" style={{ backgroundColor: calendarLocationColor(event.location) ?? "transparent", color: calendarLocationColor(event.location) ? "#fff" : "inherit" }}>{event.location}</span>
                 {event.assignments.map(assignment => <span className="calendar-room" key={assignment.id}>
                   <span className="calendar-room-name">{assignment.salon}</span><span className="calendar-service">{assignment.serviceType}</span>
@@ -779,8 +792,9 @@ ${calendario}
                   {conflicts.some(conflict => (conflict.left.eventId === event.id || conflict.right.eventId === event.id) && conflict.periods.some(period => period.start <= day.iso && period.end >= day.iso)) && <small className="pending-badge"><AlertTriangle size={10} /> Posible cruce</small>}
                   {event.assignments.some(a => roles.some(role => a.crew[role].some(person => person.name.trim() && operatorWorksOn(person, day.iso) && !person.confirmed))) && <small className="pending-badge">Operadores por confirmar</small>}
                 </span>
-              </button>)}
-          </article>)}</div>
+              </button><input type="color" className="calendar-event-color" title={`Cambiar color · ${event.eventName}`} aria-label={`Color del evento · ${event.orderNumber} · ${day.iso}`} value={event.color} disabled={saving || documentBusy} onChange={e => editing?.id === event.id && editing.mode === "form" ? changeDraft({ color: e.target.value }) : changeSheet(event, draft => ({ ...draft, color: e.target.value }))} />
+              </div>)}
+          </article>)}</div>)}</div>
         </div>
       </section>)}</section></div> : <section className="sheet-panel" aria-label="Planilla de eventos">
         <fieldset disabled={saving || documentBusy}>
