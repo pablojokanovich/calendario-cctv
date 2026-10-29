@@ -80,6 +80,8 @@ export function validateBackupManifest(input: unknown): AgendaBackup {
     const event = entry?.event;
     if (!event || !Number.isSafeInteger(event.id) || event.id < 1 || ids.has(event.id)) return invalid();
     ids.add(event.id);
+    if (event.mealDates !== undefined && (!Array.isArray(event.mealDates) || event.mealDates.length > 5000 || event.mealDates.some(day => typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)))) return invalid();
+    if (event.mealSheetLoaded !== undefined && typeof event.mealSheetLoaded !== "boolean") return invalid();
     if (![event.orderNumber, event.eventName, event.location, event.setupDate, event.startDate, event.endDate, event.color, event.phase].every(text => typeof text === "string" && text.length <= 10000) || !Array.isArray(event.assignments) || !event.assignments.length || event.assignments.length > 500) return invalid();
     for (const room of event.assignments) {
       if (!room || typeof room.id !== "string" || !room.crew || ![room.salon, room.serviceType, room.vmixType, room.status].every(text => typeof text === "string" && text.length <= 10000)) return invalid();

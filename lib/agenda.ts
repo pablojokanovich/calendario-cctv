@@ -27,6 +27,8 @@ export type EventDraft = {
   phase: "ARMADO" | "EVENTO" | "ARMADO + EVENTO";
   color: string;
   assignments: Assignment[];
+  mealDates: string[];
+  mealSheetLoaded: boolean;
 };
 export type EventRecord = EventDraft & { id: number };
 
@@ -186,17 +188,23 @@ export function dateIso(date: Date) {
 }
 export function newDraft(): EventDraft {
   const today = dateIso(new Date());
-  return { orderNumber: "", eventName: "", location: "", setupDate: today, startDate: today, endDate: today, phase: "EVENTO", color: colors[4], assignments: [newAssignment()] };
+  return { orderNumber: "", eventName: "", location: "", setupDate: today, startDate: today, endDate: today, phase: "EVENTO", color: colors[4], assignments: [newAssignment()], mealDates: [], mealSheetLoaded: false };
 }
 export function normalizeEvent(input: unknown): EventRecord {
   const value = record(input);
   const assignments = Array.isArray(value.assignments) && value.assignments.length ? value.assignments.map(normalizeAssignment) : [normalizeAssignment({})];
-  return {
+  const event: EventRecord = {
     id: Number(value.id), orderNumber: string(value.orderNumber), eventName: string(value.eventName),
     location: string(value.location).toLocaleUpperCase("es-AR"), setupDate: string(value.setupDate), startDate: string(value.startDate), endDate: string(value.endDate),
     phase: phases.includes(value.phase as EventDraft["phase"]) ? value.phase as EventDraft["phase"] : "EVENTO",
     color: /^#[\da-f]{6}$/i.test(string(value.color)) ? string(value.color) : colors[4], assignments,
+    mealDates: [], mealSheetLoaded: value.mealSheetLoaded === true,
   };
+  let meals = value.mealDates;
+  if (typeof meals === "string") { try { meals = JSON.parse(meals); } catch { meals = []; } }
+  const active = new Set(eventDates(event));
+  event.mealDates = Array.isArray(meals) ? [...new Set(meals.filter((day): day is string => validIsoDate(day) && active.has(day)))].sort() : [];
+  return event;
 }
 
 export function validateEvent(draft: EventDraft): string | null {
@@ -219,6 +227,7 @@ export function toPayload(input: unknown) {
     orderNumber: event.orderNumber.trim(), eventName: event.eventName.trim(), location: event.location.trim(),
     setupDate: event.setupDate, startDate: event.startDate, endDate: event.endDate,
     phase: event.phase, color: event.color, assignments: JSON.stringify(event.assignments),
+    mealDates: JSON.stringify(event.mealDates), mealSheetLoaded: event.mealSheetLoaded,
     updatedAt: new Date().toISOString(),
   };
 }

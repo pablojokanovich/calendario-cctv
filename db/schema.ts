@@ -12,6 +12,8 @@ export const events = pgTable("events", {
   phase: text("phase").notNull(),
   color: text("color").notNull(),
   assignments: text("assignments").notNull(),
+  mealDates: text("meal_dates").notNull().default("[]"),
+  mealSheetLoaded: boolean("meal_sheet_loaded").notNull().default(false),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

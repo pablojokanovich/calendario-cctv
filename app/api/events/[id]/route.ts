@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import { events } from "../../../../db/schema";
+import { ensureEventMeals } from "../../../../db/event-meals";
 import { EventValidationError, normalizeEvent, toPayload } from "../../../../lib/agenda";
 
 export const runtime = "nodejs";
@@ -10,6 +11,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     const { id } = await context.params;
     if (!Number.isSafeInteger(Number(id)) || Number(id) < 1) return Response.json({ error: "Evento no encontrado." }, { status: 404 });
     const payload = toPayload(await request.json());
+    await ensureEventMeals();
     const [event] = await getDb().update(events).set(payload).where(eq(events.id, Number(id))).returning();
     if (!event) return Response.json({ error: "Evento no encontrado." }, { status: 404 });
     return Response.json({ event: normalizeEvent({ ...event, assignments: JSON.parse(event.assignments) }) });

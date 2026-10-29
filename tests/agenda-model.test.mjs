@@ -2,6 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { crewSummary, eventCrewText, eventPlannerLink, newDraft, normalizeEvent, normalizeAssignment, splitOperators, toPayload, validateEvent } from "../lib/agenda.ts";
 
+test("meals default to unchecked for legacy events and survive a database round trip", () => {
+  const legacy = normalizeEvent({ orderNumber: "0001", eventName: "Prueba", location: "CEC", setupDate: "2026-11-01", startDate: "2026-11-03", endDate: "2026-11-04" });
+  assert.deepEqual(legacy.mealDates, []); assert.equal(legacy.mealSheetLoaded, false);
+  const draft = { ...legacy, mealDates: ["2026-11-04", "2026-11-01", "2026-11-01", "2026-11-02", "2026-11-05", "invalid"], mealSheetLoaded: true };
+  const stored = toPayload(draft);
+  assert.equal(stored.mealDates, '["2026-11-01","2026-11-04"]');
+  const restored = normalizeEvent({ ...stored, assignments: JSON.parse(stored.assignments) });
+  assert.deepEqual(restored.mealDates, ["2026-11-01", "2026-11-04"]);
+  assert.equal(restored.mealSheetLoaded, true);
+  assert.deepEqual(normalizeEvent({ ...draft, endDate: "2026-11-03" }).mealDates, ["2026-11-01"]);
+  assert.deepEqual(normalizeEvent({ ...draft, mealDates: '{broken' }).mealDates, []);
+  assert.equal(normalizeEvent({ ...draft, mealSheetLoaded: "true" }).mealSheetLoaded, false);
+});
+
 test("legacy people remain separate and old confirmation applies only to cameras", () => {
   const room = normalizeAssignment({ salon: "LIBERTADOR ABC", director: "Maca", cameras: "Lucas, Esteban", vmix: "Pablo", wp: true });
   assert.deepEqual(room.crew.cameras.map(p => [p.name, p.confirmed]), [["Lucas", true], ["Esteban", true]]);

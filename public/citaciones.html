@@ -1036,6 +1036,7 @@
     if (values.inicio && values.fin) {
       buildDays();
       if (Array.isArray(payload?.activeDates)) days = days.filter(day => payload.activeDates.includes(day.date));
+      if (Array.isArray(payload?.mealDates)) days = days.map(day => ({ ...day, vianda: payload.mealDates.includes(day.date) }));
       applyAgendaDayTypes(values.armado, values.eventoInicio || values.inicio, values.fin);
     }
 

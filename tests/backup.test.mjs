@@ -6,6 +6,8 @@ import { createBackup, planRestore, readBackup, restoreBackup, validateBackupMan
 
 const event = normalizeEvent({ ...newDraft(), id: 7, orderNumber: "0007", eventName: "Congreso", location: "CEC", setupDate: "2026-11-01", startDate: "2026-11-02", endDate: "2026-11-03" });
 event.assignments[0].crew.cameras = [{ id: "person", name: "Cami", confirmed: true, dates: ["2026-11-02"] }];
+event.mealDates = ["2026-11-01", "2026-11-03"];
+event.mealSheetLoaded = true;
 const workspace = { equipment: [{ id: "cam", roomId: event.assignments[0].id, roomName: "A", name: "Camara", area: "CCTV", category: "Camaras", qty: 2 }], packages: [{ id: "case", name: "Bulto 1", items: [{ equipmentId: "cam", qty: 2 }] }] };
 const bytes = new TextEncoder().encode("%PDF-1.4\nTEST PDF\n%%EOF");
 const uploadedAt = new Date(Date.now() - 5 * 86400000).toISOString();
@@ -33,6 +35,20 @@ test("full ZIP backup round-trips assignments, settings, equipment, PDFs and the
   assert.equal(loaded.manifest.entries[0].documents[0].expiresAt, doc.expiresAt);
   assert.deepEqual(loaded.files.get("documents/0-0.pdf"), bytes);
   assert(!JSON.stringify(loaded.manifest).includes("password"));
+});
+
+test("meal metadata validates without breaking backups created before the feature", async () => {
+  const { manifest } = await readBackup(await exportFixture());
+  const old = structuredClone(manifest);
+  delete old.entries[0].event.mealDates;
+  delete old.entries[0].event.mealSheetLoaded;
+  assert.doesNotThrow(() => validateBackupManifest(old));
+  const bad = structuredClone(manifest);
+  bad.entries[0].event.mealDates = ["invalid"];
+  assert.throws(() => validateBackupManifest(bad));
+  bad.entries[0].event.mealDates = [];
+  bad.entries[0].event.mealSheetLoaded = "true";
+  assert.throws(() => validateBackupManifest(bad));
 });
 
 test("corrupt PDF hashes, missing files, traversal paths and incompatible versions are rejected before writes", async () => {

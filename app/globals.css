@@ -98,6 +98,11 @@ svg { flex-shrink: 0; }
 .editor .custom-event-color { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; }
 .editor .custom-event-color input { width: 42px; height: 30px; min-height: 30px; padding: 2px; cursor: pointer; }
 .custom-event-color output { font-variant-numeric: tabular-nums; font-weight: 400; }
+.event-meals { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
+.meal-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px 16px; margin: 14px 0 18px; }
+.editor .meal-day, .editor .meal-sheet-check { flex-direction: row; align-items: center; gap: 8px; cursor: pointer; }
+.meal-day small { display: block; font-size: 11px; font-weight: 400; margin-top: 3px; }
+.editor .meal-sheet-check { padding-top: 14px; border-top: 1px solid var(--line); }
 .assignments-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin: 24px 0 10px; }
 .assignment-editor { border-top: 1px solid var(--line); padding: 16px 0; }
 .room-fields { display: grid; grid-template-columns: 1.2fr 1.5fr 1fr 1fr auto; align-items: end; gap: 12px; margin-bottom: 16px; }

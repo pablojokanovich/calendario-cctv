@@ -1,12 +1,14 @@
 import { asc } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { events } from "../../../db/schema";
+import { ensureEventMeals } from "../../../db/event-meals";
 import { EventValidationError, normalizeEvent, toPayload } from "../../../lib/agenda";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
+    await ensureEventMeals();
     const rows = await getDb().select().from(events).orderBy(asc(events.startDate), asc(events.orderNumber));
     return Response.json({ events: rows.map(row => normalizeEvent({ ...row, assignments: JSON.parse(row.assignments) })) });
   } catch (error) {
@@ -18,6 +20,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const payload = toPayload(await request.json());
+    await ensureEventMeals();
     const [event] = await getDb().insert(events).values(payload).returning();
     return Response.json({ event: normalizeEvent({ ...event, assignments: JSON.parse(event.assignments) }) }, { status: 201 });
   } catch (error) {

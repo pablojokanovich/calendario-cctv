@@ -9,12 +9,18 @@ CREATE TABLE IF NOT EXISTS events (
   phase text NOT NULL,
   color text NOT NULL,
   assignments text NOT NULL,
+  meal_dates text NOT NULL DEFAULT '[]',
+  meal_sheet_loaded boolean NOT NULL DEFAULT false,
   created_at text NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at text NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS events_start_date_order_number_idx
   ON events (start_date, order_number);
+
+ALTER TABLE events
+  ADD COLUMN IF NOT EXISTS meal_dates text NOT NULL DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS meal_sheet_loaded boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS event_service_orders (
   event_id integer PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE,

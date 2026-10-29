@@ -177,6 +177,7 @@ function citationPayload(event: EventRecord, selectedAssignment: Assignment) {
     startDate: event.startDate,
     endDate: event.endDate,
     activeDates: eventDates(event),
+    mealDates: event.mealDates,
     selectedAssignmentId: selectedAssignment.id,
     selectedSalon: selectedAssignment.salon,
     selectedService: selectedAssignment.serviceType,
@@ -590,6 +591,7 @@ export default function AgendaApp() {
           orderNumber: event.orderNumber, eventName: event.eventName, location: event.location,
           setupDate: event.setupDate, startDate: event.startDate, endDate: event.endDate,
           phase: event.phase, color: event.color, assignments: event.assignments,
+          mealDates: event.mealDates, mealSheetLoaded: event.mealSheetLoaded,
         };
         return { ...current, id: event.id, data: savedData, dirty: false };
       });
@@ -659,7 +661,7 @@ ${calendario}
     URL.revokeObjectURL(url);
   }
 
-  function sheetField(event: EventRecord, field: keyof Omit<EventDraft, "assignments">, label: string, type = "text") {
+  function sheetField(event: EventRecord, field: keyof Omit<EventDraft, "assignments" | "mealDates" | "mealSheetLoaded">, label: string, type = "text") {
     if (type === "text") return <textarea className={field === "location" ? "location-input" : undefined} aria-label={`${label} · ${event.orderNumber}`} rows={2} value={event[field]}
       onFocus={() => { beginEdit(event, "sheet"); }}
       onChange={e => changeSheet(event, data => ({ ...data, [field]: e.target.value }))} />;
@@ -753,6 +755,7 @@ ${calendario}
           <label>Día en calendario<select value={draft.phase} onChange={e => changeDraft({ phase: e.target.value as EventDraft["phase"] })}>{phases.map(p => <option key={p}>{p}</option>)}</select></label>
           <div className="color-field"><span>Color del evento</span><div className="swatches">{colors.map(color => <button type="button" key={color} title={`Color ${color}`} aria-label={`Color ${color}`} aria-pressed={draft.color === color} style={{ background: color, color: darkColor(color) ? "#fff" : "#111" }} onClick={() => changeDraft({ color })}>{draft.color === color && <Check size={16} />}</button>)}</div><label className="custom-event-color">Personalizado<input type="color" aria-label="Color personalizado del evento" title="Elegir cualquier color" value={draft.color} onChange={e => changeDraft({ color: e.target.value })} /><output>{draft.color.toUpperCase()}</output></label></div>
         </div>
+        <section className="event-meals" aria-label="Viandas del evento"><h3>Viandas</h3><div className="meal-days">{eventDates(draft).map(day => <label className="meal-day" key={day}><input type="checkbox" aria-label={`Vianda · ${day}`} checked={draft.mealDates.includes(day)} onChange={e => changeDraft({ mealDates: e.target.checked ? [...new Set([...draft.mealDates, day])].sort() : draft.mealDates.filter(date => date !== day) })} /><span>{day.split("-").reverse().join("/")}<small>{phaseFor(draft, day)}</small></span></label>)}</div><label className="meal-sheet-check"><input type="checkbox" aria-label="Planilla de viandas cargada" checked={draft.mealSheetLoaded} onChange={e => changeDraft({ mealSheetLoaded: e.target.checked })} />Planilla de viandas cargada</label></section>
         </section>
         <section className="ficha-panel" role="tabpanel" id="ficha-panel-salas" aria-labelledby="ficha-tab-salas" hidden={fichaTab !== "salas"}>
         <div className="assignments-head"><h3>Salas y operadores</h3><button type="button" onClick={() => changeDraft({ assignments: [...draft.assignments, newAssignment()] })}><Plus size={16} />Agregar sala</button></div>

@@ -123,6 +123,16 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     assert.ok(root().findByProps({ className: "editor-panel" }));
     assert.equal(button("Guardar ficha").props.disabled, false, "Opening the same event must retain the unsaved calendar color");
     assert.equal(input("Color personalizado del evento").props.value, "#efab12");
+    assert.equal(input(`Vianda · ${today}`).props.checked, false);
+    assert.equal(input(`Vianda · ${tomorrow}`).props.checked, false);
+    await act(async () => input(`Vianda · ${today}`).props.onChange({ target: { checked: true } }));
+    await act(async () => input("Planilla de viandas cargada").props.onChange({ target: { checked: true } }));
+    assert.equal(input(`Vianda · ${tomorrow}`).props.checked, false);
+    await click("Citaciones");
+    const mealsPayload = JSON.parse(new URLSearchParams(root().findByType("iframe").props.src.split("?")[1]).get("payload"));
+    assert.deepEqual(mealsPayload.mealDates, [today]);
+    await click("Datos");
+    assert.equal(input("Planilla de viandas cargada").props.checked, true);
     assert.equal(calendarColor().props.value, "#efab12");
     await click("Cerrar ficha");
     assert.equal(calendarColor().props.value, "#204060");
