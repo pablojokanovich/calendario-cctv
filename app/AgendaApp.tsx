@@ -1,5 +1,5 @@
 "use client";
-import type { Holiday } from "../lib/holidays";
+import { withAgendaHolidays, type Holiday } from "../lib/holidays";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { CalendarDays, Table2, BarChart3, Users, Archive, FileSpreadsheet, ChevronLeft, ChevronRight, Download, Plus, Moon, Sun, Save, X, Trash2, Pencil, Check, RefreshCw, ExternalLink, Search, AlertTriangle, FileText, MapPin } from "lucide-react";
@@ -430,9 +430,9 @@ export default function AgendaApp() {
         const response = await fetch(`/api/holidays?year=${year}`, { signal: controller.signal });
         const data = await response.json() as { holidays?: Holiday[]; error?: string };
         if (!response.ok || !Array.isArray(data.holidays)) throw new Error(data.error || `Feriados: datos no disponibles para ${year}.`);
-        return { holidays: data.holidays, error: "" };
+        return { holidays: withAgendaHolidays(data.holidays, Number(year)), error: "" };
       } catch {
-        return { holidays: [] as Holiday[], error: `Feriados: datos no disponibles para ${year}.` };
+        return { holidays: withAgendaHolidays([], Number(year)), error: `Feriados: datos no disponibles para ${year}.` };
       }
     })).then(results => {
       if (controller.signal.aborted) return;
@@ -769,7 +769,7 @@ ${calendario}
           <div className="calendar-grid">{calendarWeeks(daysForMonth(value), calendarDisplayEvents, dateIso(value)).map(week => <div className="calendar-week" key={week.days[0].iso} style={{ gridTemplateRows: `auto ${week.laneCount ? `repeat(${week.laneCount}, auto) ` : ""}minmax(16px, 1fr)` }}>{week.days.map((day, column) => day.iso < dateIso(value) ? <div key={day.iso} className="day-cell calendar-empty" aria-hidden="true" style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} /> : <article key={day.iso} data-calendar-date={day.iso} style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
             <div className="calendar-day-header">
             <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time></div>
-            {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
+            {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].internal ? "Feriado interno" : holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
             </div>
             {week.entries.filter(entry => entry.columns.includes(column)).map(({ event, lane, columns }) =>
               <div className={`calendar-event ${columns.includes(column - 1) ? "continues-before" : ""} ${columns.includes(column + 1) ? "continues-after" : ""}`} key={event.id} data-calendar-event={event.id} style={{ gridRow: lane + 2 }}>

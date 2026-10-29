@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeHolidays } from "../lib/holidays.ts";
+import { normalizeHolidays, withAgendaHolidays } from "../lib/holidays.ts";
+
+test("the requested November 11 exception is internal, year-specific and available without the provider", () => {
+  const internal = { date: "2026-11-11", name: "Visita del Papa", nonWorking: false, internal: true };
+  assert.deepEqual(withAgendaHolidays([], 2026), [internal]);
+  assert.deepEqual(withAgendaHolidays([], 2027), []);
+  const christmas = { date: "2026-12-25", name: "Navidad", nonWorking: false };
+  const original = [christmas, { ...internal, name: "Duplicate" }];
+  assert.deepEqual(withAgendaHolidays(original, 2026), [internal, christmas]);
+  assert.equal(original[1].name, "Duplicate");
+});
 
 test("holidays distinguish national holidays from non-working tourist days", () => {
   assert.deepEqual(normalizeHolidays([
