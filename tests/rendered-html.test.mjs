@@ -122,6 +122,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     await act(async () => root().findAllByProps({ className: "event-chip" })[0].props.onClick());
     assert.ok(root().findByProps({ className: "editor-panel" }));
     assert.equal(button("Guardar ficha").props.disabled, false, "Opening the same event must retain the unsaved calendar color");
+    assert.equal(input("Color personalizado del evento").props.value, "#efab12");
     assert.equal(calendarColor().props.value, "#efab12");
     await click("Cerrar ficha");
     assert.equal(calendarColor().props.value, "#204060");
@@ -153,6 +154,16 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     await click("Limpiar búsqueda");
     await click("Nuevo evento");
     assert.equal(root().findByProps({ className: "editor-panel" }).props["aria-labelledby"], "editor-title");
+    const customColor = input("Color personalizado del evento");
+    assert.equal(customColor.props.type, "color");
+    await act(async () => customColor.props.onChange({ target: { value: "#358a71" } }));
+    assert.equal(input("Color personalizado del evento"), customColor, "The custom picker must remain mounted while selecting a color");
+    assert.equal(customColor.props.value, "#358a71");
+    assert.equal(root().findByType("output").children[0], "#358A71");
+    const preset = root().findAllByType("button").find(node => node.props["aria-label"]?.startsWith("Color #"));
+    await act(async () => preset.props.onClick());
+    assert.equal(customColor.props.value, preset.props.style.background);
+    await act(async () => customColor.props.onChange({ target: { value: "#358a71" } }));
     await click("Citaciones");
     const citationFrame = root().findByType("iframe");
     await click("Datos");

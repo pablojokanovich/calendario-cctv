@@ -95,6 +95,9 @@ svg { flex-shrink: 0; }
 .swatches { display: flex; flex-wrap: wrap; gap: 6px; }
 .swatches button { width: 28px; height: 28px; min-height: 28px; padding: 0; border: 1px solid #808890; border-radius: 4px; }
 .swatches button[aria-pressed="true"] { outline: 2px solid var(--foreground); outline-offset: 2px; }
+.editor .custom-event-color { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; }
+.editor .custom-event-color input { width: 42px; height: 30px; min-height: 30px; padding: 2px; cursor: pointer; }
+.custom-event-color output { font-variant-numeric: tabular-nums; font-weight: 400; }
 .assignments-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin: 24px 0 10px; }
 .assignment-editor { border-top: 1px solid var(--line); padding: 16px 0; }
 .room-fields { display: grid; grid-template-columns: 1.2fr 1.5fr 1fr 1fr auto; align-items: end; gap: 12px; margin-bottom: 16px; }
