@@ -262,6 +262,7 @@ export default function AgendaApp() {
   const focusNextForm = useRef(false);
   const calendarRef = useRef<HTMLElement>(null);
   const viewToolbarRef = useRef<HTMLDivElement>(null);
+  const eventOverviewRef = useRef<HTMLElement>(null);
   const visibleMonthAnchor = useRef<{ element: Element; top: number } | null>(null);
   const calendarJump = useRef(false);
 
@@ -279,6 +280,7 @@ export default function AgendaApp() {
   }, [loadedMonths]);
 
   useLayoutEffect(() => {
+    if (eventOverviewRef.current) eventOverviewRef.current.scrollTop = 0;
     const anchor = visibleMonthAnchor.current;
     visibleMonthAnchor.current = null;
     if (anchor?.element.isConnected) {
@@ -319,7 +321,8 @@ export default function AgendaApp() {
     function updateTimeline() {
       frame = 0;
       const sections = Array.from(calendar!.querySelectorAll<HTMLElement>("[data-calendar-month]"));
-      const visible = sections.find(section => section.getBoundingClientRect().bottom > 180);
+      const top = viewToolbarRef.current?.getBoundingClientRect().bottom ?? 0;
+      const visible = sections.find(section => section.getBoundingClientRect().bottom > top + 1);
       if (visible) {
         const date = parseDate(visible.dataset.calendarMonth!);
         if (dateIso(month) !== dateIso(date)) {
@@ -355,6 +358,7 @@ export default function AgendaApp() {
     function updateWeekdays() {
       frame = 0;
       const top = Math.max(0, toolbar!.getBoundingClientRect().bottom);
+      calendar!.closest<HTMLElement>(".calendar-layout")?.style.setProperty("--calendar-toolbar-height", `${toolbar!.offsetHeight}px`);
       for (const row of calendar!.querySelectorAll<HTMLElement>(".weekday-row")) {
         const inner = row.parentElement!.getBoundingClientRect();
         const offset = Math.max(0, Math.min(top - inner.top, inner.height - row.offsetHeight));
@@ -780,7 +784,7 @@ ${calendario}
           <span className="search-result-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span>{event.location}</span><span>{formatShort(event.setupDate || event.startDate)} — {formatShort(event.endDate)}</span><span className="search-result-rooms">{event.assignments.map(room => room.salon).filter(Boolean).join(" · ")}</span>{event.endDate < todayIso && <small>Finalizado</small>}
         </button></li>)}</ul>{!searchResults.length && <p className="empty-state">No se encontraron eventos.</p>}
       </section> : view === "calendar" ? <div className="calendar-layout">
-        <aside className="event-overview" aria-labelledby="event-overview-title">
+        <aside ref={eventOverviewRef} className="event-overview" aria-labelledby="event-overview-title" data-overview-month={dateIso(month)}>
           <div className="event-overview-heading"><h2 id="event-overview-title">Eventos del mes</h2><span>{calendarEvents.length}</span></div>
           <ol className="event-overview-list">{calendarEvents.map(event => {
             const summary = crewSummary(event);
