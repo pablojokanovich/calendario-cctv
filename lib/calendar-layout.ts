@@ -1,4 +1,4 @@
-import type { EventRecord } from "./agenda.ts";
+import { assignmentWorksOn, type EventRecord } from "./agenda.ts";
 
 export type CalendarDay = { date: Date; iso: string; inMonth: boolean };
 export type CalendarEntry = { event: EventRecord; lane: number; columns: number[] };
@@ -10,7 +10,7 @@ export function calendarWeeks(days: CalendarDay[], events: EventRecord[], monthS
   for (let offset = 0; offset < days.length; offset += 7) {
     const weekDays = days.slice(offset, offset + 7);
     const candidates = events.flatMap(event => {
-      const columns = weekDays.flatMap((day, index) => day.iso >= monthStart && (day.iso === event.setupDate || (day.iso >= event.startDate && day.iso <= event.endDate)) ? [index] : []);
+      const columns = weekDays.flatMap((day, index) => day.iso >= monthStart && (day.iso === event.setupDate || (day.iso >= event.startDate && day.iso <= event.endDate)) && event.assignments.some(room => assignmentWorksOn(room, day.iso)) ? [index] : []);
       return columns.length ? [{ event, columns }] : [];
     }).sort((a, b) => Number(continuing.has(b.event.id)) - Number(continuing.has(a.event.id)) ||
       a.columns[0] - b.columns[0] || b.columns.at(-1)! - a.columns.at(-1)! ||

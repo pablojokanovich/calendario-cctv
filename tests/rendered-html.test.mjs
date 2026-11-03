@@ -146,7 +146,7 @@ test("room typing, inline edits, per-person confirmations, theme persistence and
     assert.equal(locationBadge.children[0], "CEC");
     assert.equal(locationBadge.props.style.backgroundColor, "#1d4ed8");
     assert.equal(locationBadge.props.style.color, "#fff");
-    assert.ok(textContent(root().findByProps({ className: "holiday-label" })).includes("Feriado de prueba"));
+    assert.ok(root().findAllByProps({ className: "holiday-label" }).some(node => textContent(node).includes("Feriado de prueba")));
     const overviewText = textContent(root().findByProps({ className: "event-overview-list" }));
     assert.ok(overviewText.includes("0 confirmados"));
     assert.ok(overviewText.includes("4 por confirmar"));

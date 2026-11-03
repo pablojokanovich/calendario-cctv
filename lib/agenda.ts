@@ -6,6 +6,7 @@ export const roleLabels: Record<Role, string> = {
 };
 export type Assignment = {
   id: string;
+  dates?: string[];
   salon: string;
   serviceType: string;
   director: string;
@@ -51,17 +52,25 @@ export function eventDates(event: EventDraft): string[] {
 }
 
 // Missing dates means the general assignment; an empty list means no assigned days.
-export function operatorWorksOn(person: Operator, day: string): boolean {
-  return person.dates === undefined || person.dates.includes(day);
+export function assignmentWorksOn(room: Assignment | undefined, day: string): boolean {
+  return room?.dates === undefined || room.dates.includes(day);
 }
 
-export function operatorDates(event: EventDraft, person: Operator): string[] {
-  return eventDates(event).filter(day => operatorWorksOn(person, day));
+export function assignmentDates(event: EventDraft, room: Assignment): string[] {
+  return eventDates(event).filter(day => assignmentWorksOn(room, day));
 }
 
-export function operatorDayLabel(event: EventDraft, person: Operator): string {
-  if (person.dates === undefined) return "Todos los días";
-  return operatorDates(event, person).map(day => day.split("-").reverse().join("/")).join(", ") || "Sin días asignados";
+export function operatorWorksOn(person: Operator, day: string, room?: Assignment): boolean {
+  return assignmentWorksOn(room, day) && (person.dates === undefined || person.dates.includes(day));
+}
+
+export function operatorDates(event: EventDraft, person: Operator, room?: Assignment): string[] {
+  return eventDates(event).filter(day => operatorWorksOn(person, day, room));
+}
+
+export function operatorDayLabel(event: EventDraft, person: Operator, room?: Assignment): string {
+  if (person.dates === undefined && room?.dates === undefined) return "Todos los días";
+  return operatorDates(event, person, room).map(day => day.split("-").reverse().join("/")).join(", ") || "Sin días asignados";
 }
 
 export function eventCrewText(event: EventDraft): string {
@@ -75,20 +84,21 @@ export function eventCrewText(event: EventDraft): string {
     `Evento: ${date(event.startDate)}${event.endDate && event.endDate !== event.startDate ? ` al ${date(event.endDate)}` : ""}`,
   ];
   for (const [index, room] of event.assignments.entries()) {
+    const roomDates = assignmentDates(event, room);
+    if (!roomDates.length) continue;
     lines.push("", line(room.salon) || `Sala ${index + 1} (sin nombre)`);
+    if (room.dates !== undefined) lines.push(`Días: ${roomDates.map(date).join(", ")}`);
     if (line(room.serviceType)) lines.push(`Servicio: ${line(room.serviceType)}`);
     for (const role of roles) {
-      const people = room.crew[role].filter(person => line(person.name) && (person.dates === undefined || operatorDates(event, person).length > 0));
-      if (people.length) lines.push(`- ${roleLabels[role]}: ${people.map(person => `${line(person.name)}${person.dates !== undefined ? ` [${operatorDayLabel(event, person)}]` : ""}`).join(", ")}`);
+      const people = room.crew[role].filter(person => line(person.name) && operatorDates(event, person, room).length > 0);
+      if (people.length) lines.push(`- ${roleLabels[role]}: ${people.map(person => `${line(person.name)}${person.dates !== undefined ? ` [${operatorDayLabel(event, person, room)}]` : ""}`).join(", ")}`);
     }
   }
   return lines.join("\n");
 }
 
 export function eventPlannerLink(event: EventDraft & { id?: number | null }): string {
-  const directors = event.assignments.flatMap(room => room.crew.director)
-    .filter(person => person.name.trim() && operatorDates(event, person).length)
-    .map(person => person.name.trim());
+  const directors = event.assignments.flatMap(room => room.crew.director.filter(person => person.name.trim() && operatorDates(event, person, room).length).map(person => person.name.trim()));
   const payload = {
     source: "agenda-cctv", version: 1,
     eventKey: event.id != null ? `agenda:${event.id}` : `orden:${event.orderNumber.trim()}`,
@@ -111,7 +121,7 @@ export function crewSummary(event: EventDraft) {
     for (const role of roles) {
       for (const person of assignment.crew[role]) {
         const name = person.name.trim().replace(/\s+/g, " ").toLocaleLowerCase("es-AR");
-        if (!name || !days.some(day => operatorWorksOn(person, day))) continue;
+        if (!name || !days.some(day => operatorWorksOn(person, day, assignment))) continue;
         people.set(name, (people.get(name) ?? true) && person.confirmed);
       }
     }
@@ -165,6 +175,7 @@ export function normalizeAssignment(input: unknown, index = 0): Assignment {
         }));
   }
   return syncCrew({
+    ...(Array.isArray(value.dates) ? { dates: [...new Set(value.dates.filter(validIsoDate))].sort() } : {}),
     id, salon: string(value.salon), serviceType: string(value.serviceType),
     director: "", cameras: "", volante: "", vmix: "", wp: value.wp === true,
     vmixType: string(value.vmixType), status: string(value.status) || "Pendiente", crew,

@@ -84,6 +84,7 @@ export function validateBackupManifest(input: unknown): AgendaBackup {
     if (event.mealSheetLoaded !== undefined && typeof event.mealSheetLoaded !== "boolean") return invalid();
     if (![event.orderNumber, event.eventName, event.location, event.setupDate, event.startDate, event.endDate, event.color, event.phase].every(text => typeof text === "string" && text.length <= 10000) || !Array.isArray(event.assignments) || !event.assignments.length || event.assignments.length > 500) return invalid();
     for (const room of event.assignments) {
+      if (room.dates !== undefined && (!Array.isArray(room.dates) || room.dates.length > 5000 || room.dates.some(day => typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)))) return invalid();
       if (!room || typeof room.id !== "string" || !room.crew || ![room.salon, room.serviceType, room.vmixType, room.status].every(text => typeof text === "string" && text.length <= 10000)) return invalid();
       for (const role of ["director", "cameras", "volante", "vmix"] as const) {
         if (!Array.isArray(room.crew[role]) || room.crew[role].length > 500 || room.crew[role].some(p => !p || typeof p.id !== "string" || typeof p.name !== "string" || typeof p.confirmed !== "boolean" || (p.dates !== undefined && (!Array.isArray(p.dates) || p.dates.some(day => typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)))))) return invalid();

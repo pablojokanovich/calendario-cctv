@@ -1,4 +1,4 @@
-import { eventDates, operatorWorksOn, type EventRecord } from "./agenda.ts";
+import { eventDates, assignmentWorksOn, operatorWorksOn, type EventRecord } from "./agenda.ts";
 import { canonicalOperatorName, locationFilterKey, normalizeSearchText } from "./event-insights.ts";
 import { canonicalServiceName, serviceCategory } from "./services.ts";
 
@@ -26,16 +26,18 @@ export function buildStatistics(events: EventRecord[], range: StatisticsRange, s
     days.forEach(day => location.days.add(`${event.id}:${day}`));
     locations.set(locationKey, location);
     for (const room of event.assignments) {
+      const roomDays = days.filter(day => assignmentWorksOn(room, day));
+      if (!roomDays.length) continue;
       const serviceName = serviceGrouping === "category" ? serviceCategory(room.serviceType) : canonicalServiceName(room.serviceType) || "Sin especificar";
       const key = normalizeSearchText(serviceName);
       const service = services.get(key) ?? { name: serviceName, events: new Set<number>(), days: new Set<string>() };
       service.events.add(event.id);
-      days.forEach(day => service.days.add(`${event.id}:${day}`));
+      roomDays.forEach(day => service.days.add(`${event.id}:${day}`));
       services.set(key, service);
       for (const person of Object.values(room.crew).flat()) {
         const name = canonicalOperatorName(person.name);
         const personKey = normalizeSearchText(name);
-        const workingDays = days.filter(day => operatorWorksOn(person, day));
+        const workingDays = roomDays.filter(day => operatorWorksOn(person, day));
         if (!personKey || internalStaff.has(personKey) || !workingDays.length) continue;
         const operator = operators.get(personKey) ?? { name, events: new Set<number>(), days: new Set<string>() };
         operator.events.add(event.id);

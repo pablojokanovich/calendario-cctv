@@ -1,4 +1,4 @@
-import { eventDates, operatorWorksOn, roles, type EventRecord, type Role } from "./agenda.ts";
+import { assignmentDates, operatorWorksOn, roles, type EventRecord, type Role } from "./agenda.ts";
 import { canonicalOperatorName, normalizeSearchText } from "./event-insights.ts";
 
 export const personnelHeaders = ["OS", "LUGAR", "SALA", "MES", "FECHA", "ARMADO", "EVENTO", "DESARME", "PERSONAL", "PUESTO", "JORNADAS"];
@@ -18,8 +18,8 @@ export function personnelDateLabel(dates: string[]): string {
 }
 
 export function personnelRows(event: EventRecord, dismantleOnLastDay = true): PersonnelRow[] {
-  const allDates = eventDates(event);
   return event.assignments.flatMap(room => {
+    const allDates = assignmentDates(event, room);
     const people = new Map<string, { name: string; days: Map<string, Set<Role>> }>();
     for (const role of roles) for (const person of room.crew[role]) {
       const name = canonicalOperatorName(person.name), key = normalizeSearchText(name);

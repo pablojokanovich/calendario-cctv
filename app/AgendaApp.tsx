@@ -12,7 +12,7 @@ import { EventPersonnelExport } from "./EventPersonnelExport";
 import { calendarWeeks } from "../lib/calendar-layout";
 import { canonicalServiceName, serviceOptions } from "../lib/services";
 import { canonicalOperatorName, calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
-import { colors, crewSummary, eventPlannerLink, eventDates, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
+import { colors, crewSummary, eventPlannerLink, eventDates, assignmentDates, assignmentWorksOn, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
   interface Document {
@@ -98,10 +98,16 @@ function IconButton({ label, children, ...props }: { label: string; children: Re
   return <button type="button" className="icon-button" title={label} aria-label={label} {...props}>{children}</button>;
 }
 
-function CrewEditor({ event, role, people, onChange, onFocus, compact = false }: {
-  event: EventDraft; role: Role; people: Operator[]; onChange: (people: Operator[]) => void; onFocus?: () => void; compact?: boolean;
-}) {
+function RoomDays({ event, room, onChange }: { event: EventDraft; room: Assignment; onChange: (dates: string[] | undefined) => void }) {
   const days = eventDates(event);
+  const label = `${room.salon || "Sin sala"} · ${event.orderNumber}`;
+  return <details className={`operator-days room-days ${room.dates !== undefined ? "custom-days" : ""}`}><summary aria-label={`Días de sala · ${label}`}><CalendarDays size={13} /><span>{room.dates === undefined ? "Sala: todos los días" : `Sala: ${assignmentDates(event, room).length}/${days.length} días`}</span></summary><div className="operator-days-options"><label><input type="checkbox" aria-label={`Todos los días de sala · ${label}`} checked={days.length > 0 && days.every(day => assignmentWorksOn(room, day))} disabled={!days.length} onChange={e => onChange(e.target.checked ? undefined : [])} />Todos los días</label>{days.map(day => <label key={day}><input type="checkbox" aria-label={`Día de sala · ${label} · ${day}`} checked={assignmentWorksOn(room, day)} onChange={e => onChange(e.target.checked ? [...new Set([...(room.dates ?? days), day])].sort() : (room.dates ?? days).filter(date => date !== day))} /><span>{formatShort(day)}<small>{phaseFor(event, day)}</small></span></label>)}{!days.length && <span>Sin fechas definidas</span>}</div></details>;
+}
+
+function CrewEditor({ event, room, role, people, onChange, onFocus, compact = false }: {
+  event: EventDraft; room: Assignment; role: Role; people: Operator[]; onChange: (people: Operator[]) => void; onFocus?: () => void; compact?: boolean;
+}) {
+  const days = assignmentDates(event, room);
   function update(id: string, patch: Partial<Operator>) {
     onChange(people.map(person => person.id === id ? { ...person, ...patch } : person));
   }
@@ -119,7 +125,7 @@ function CrewEditor({ event, role, people, onChange, onFocus, compact = false }:
       <IconButton label={`Quitar ${roleLabels[role]} ${index + 1}`} onClick={() => onChange(people.filter(p => p.id !== person.id))}><X size={14} /></IconButton>
     </div>
       {person.name.trim() && <details className={`operator-days ${person.dates !== undefined ? "custom-days" : ""}`}>
-        <summary aria-label={`Días de ${roleLabels[role]} ${index + 1}: ${person.name}`}><CalendarDays size={13} /><span>{person.dates === undefined ? "Todos los días" : `${days.filter(day => operatorWorksOn(person, day)).length}/${days.length} días`}</span></summary>
+        <summary aria-label={`Días de ${roleLabels[role]} ${index + 1}: ${person.name}`}><CalendarDays size={13} /><span>{!days.length ? "Sala sin días" : person.dates === undefined ? "Todos los días" : `${days.filter(day => operatorWorksOn(person, day)).length}/${days.length} días`}</span></summary>
         <div className="operator-days-options">
           <label><input type="checkbox" aria-label={`Todos los días de ${roleLabels[role]} ${index + 1}: ${person.name}`} checked={days.length > 0 && days.every(day => operatorWorksOn(person, day))} disabled={!days.length}
             onChange={e => update(person.id, { dates: e.target.checked ? undefined : [] })} />Todos los días</label>
@@ -155,7 +161,7 @@ function citationPayload(event: EventRecord, selectedAssignment: Assignment) {
   event.assignments.forEach(assignment => {
     roles.forEach(role => assignment.crew[role].forEach(person => {
       const name = person.name.trim();
-      const days = operatorDates(event, person);
+      const days = operatorDates(event, person, assignment);
       if (!name || !days.length) return;
       const key = name.toLocaleLowerCase("es-AR");
       const current = people.get(key);
@@ -183,6 +189,7 @@ function citationPayload(event: EventRecord, selectedAssignment: Assignment) {
     selectedService: selectedAssignment.serviceType,
     assignments: event.assignments.map(assignment => ({
       salon: assignment.salon,
+      days: assignmentDates(event, assignment),
       serviceType: assignment.serviceType,
       vmixType: assignment.vmixType,
       status: assignment.status,
@@ -190,7 +197,7 @@ function citationPayload(event: EventRecord, selectedAssignment: Assignment) {
         name: person.name.trim(),
         role: roleLabels[role],
         confirmed: person.confirmed,
-        days: operatorDates(event, person),
+        days: operatorDates(event, person, assignment),
       }))),
     })),
     people: [...people.values()],
@@ -622,7 +629,7 @@ export default function AgendaApp() {
     const header = ["Nro de Orden", "Evento", "Lugar", "Armado", "Inicio", "Fin", "Sala", "Tipo de Servicio CCTV", "Director", "Director confirmado", "Camarógrafos", "Camarógrafos confirmados", "Volante", "Volante confirmado", "vMix", "vMix confirmado", "Estado"];
     const sheetRows = events.flatMap(event => event.assignments.map(a => [
       event.orderNumber, event.eventName, event.location, formatShort(event.setupDate), formatShort(event.startDate), formatShort(event.endDate), a.salon, a.serviceType,
-      ...roles.flatMap(role => [a.crew[role].filter(p => p.name.trim()).map(p => `${p.name}${p.dates !== undefined ? ` [${operatorDayLabel(event, p)}]` : ""}`).join("; "), a.crew[role].filter(p => p.name.trim() && operatorDates(event, p).length).map(p => `${p.name}: ${p.confirmed ? "SI" : "NO"}`).join("; ")]),
+      ...roles.flatMap(role => [a.crew[role].filter(p => p.name.trim() && operatorDates(event, p, a).length).map(p => `${p.name}${p.dates !== undefined || a.dates !== undefined ? ` [${operatorDayLabel(event, p, a)}]` : ""}`).join("; "), a.crew[role].filter(p => p.name.trim() && operatorDates(event, p, a).length).map(p => `${p.name}: ${p.confirmed ? "SI" : "NO"}`).join("; ")]),
       a.status,
     ]));
     const usedColors = new Set(events.map(event => event.color));
@@ -634,8 +641,8 @@ export default function AgendaApp() {
     }).join("")}</Table></Worksheet>`;
     const weeks = Array.from({ length: Math.ceil(monthDays.length / 7) }, (_, index) => monthDays.slice(index * 7, index * 7 + 7));
     const calendario = `<Worksheet ss:Name="Calendario"><Table>${weekdays.map(() => `<Column ss:Width="155"/>`).join("")}<Row>${weekdays.map(day => excelTextCell(day, "Header")).join("")}</Row>${weeks.map(week => `<Row ss:Height="95">${week.map(day => {
-      const dayEvents = events.filter(event => event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate));
-      const entries = dayEvents.map(event => `${event.orderNumber} - ${event.eventName}\n${event.location}\n${event.assignments.map(a => [a.salon, a.serviceType].filter(Boolean).join(" - ")).join("\n")}\n${phaseFor(event, day.iso)}`).join("\n\n");
+      const dayEvents = events.filter(event => (event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)) && event.assignments.some(room => assignmentWorksOn(room, day.iso)));
+      const entries = dayEvents.map(event => `${event.orderNumber} - ${event.eventName}\n${event.location}\n${event.assignments.filter(room => assignmentWorksOn(room, day.iso)).map(a => [a.salon, a.serviceType].filter(Boolean).join(" - ")).join("\n")}\n${phaseFor(event, day.iso)}`).join("\n\n");
       const style = dayEvents[0] ? excelStyleId(dayEvents[0].color) : !day.inMonth ? "MutedDay" : day.date.getDay() === 0 || day.date.getDay() === 6 ? "WeekendDay" : "CalendarDay";
       return excelTextCell(`${day.date.getDate()}${entries ? `\n${entries}` : ""}`, style);
     }).join("")}</Row>`).join("")}</Table></Worksheet>`;
@@ -768,7 +775,8 @@ ${calendario}
             <label>Estado<select value={assignment.status} onChange={e => changeAssignment(assignment.id, { status: e.target.value })}>{statuses.map(s => <option key={s}>{s}</option>)}</select></label>
             <IconButton label={`Quitar sala ${index + 1}`} disabled={draft.assignments.length === 1} onClick={() => changeDraft({ assignments: draft.assignments.filter(a => a.id !== assignment.id) })}><Trash2 size={17} /></IconButton>
           </div>
-          <div className="room-crew">{roles.map(role => <CrewEditor key={role} event={draft} role={role} people={assignment.crew[role]} onChange={people => changeAssignment(assignment.id, { crew: { ...assignment.crew, [role]: people } })} />)}</div>
+          <RoomDays event={draft} room={assignment} onChange={dates => changeAssignment(assignment.id, { dates })} />
+          <div className="room-crew">{roles.map(role => <CrewEditor key={role} event={draft} room={assignment} role={role} people={assignment.crew[role]} onChange={people => changeAssignment(assignment.id, { crew: { ...assignment.crew, [role]: people } })} />)}</div>
         </div>)}
         </section>
         <section className="ficha-panel" role="tabpanel" id="ficha-panel-documentos" aria-labelledby="ficha-tab-documentos" hidden={fichaTab !== "documentos"}><EventDocuments key={editing.id ?? "new"} eventId={editing.id} localMode={localMode} onBusyChange={setDocumentBusy} /></section>
@@ -815,10 +823,10 @@ ${calendario}
               <div className={`calendar-event ${columns.includes(column - 1) ? "continues-before" : ""} ${columns.includes(column + 1) ? "continues-after" : ""}`} key={event.id} data-calendar-event={event.id} style={{ gridRow: lane + 2 }}>
               <button type="button" className="event-chip" style={{ background: event.color, color: darkColor(event.color) ? "#fff" : "#111" }} onClick={() => beginEdit(event, "form")}>
                 <span className="calendar-order">#{event.orderNumber}</span><strong>{event.eventName}</strong><span className="calendar-location" style={{ backgroundColor: calendarLocationColor(event.location) ?? "transparent", color: calendarLocationColor(event.location) ? "#fff" : "inherit" }}>{event.location}</span>
-                {event.assignments.map(assignment => <span className="calendar-room" key={assignment.id}>
+                {event.assignments.filter(assignment => assignmentWorksOn(assignment, day.iso)).map(assignment => <span className="calendar-room" key={assignment.id}>
                   <span className="calendar-room-name">{assignment.salon}</span><span className="calendar-service">{assignment.serviceType}</span>
                   {roles.map(role => {
-                    const people = assignment.crew[role].filter(person => person.name.trim() && operatorWorksOn(person, day.iso));
+                    const people = assignment.crew[role].filter(person => person.name.trim() && operatorWorksOn(person, day.iso, assignment));
                     return people.length > 0 && <span className="calendar-crew" key={role}>
                       <b>{roleLabels[role]}: </b>
                       {people.map((person, index) => <span key={person.id}>
@@ -830,7 +838,7 @@ ${calendario}
                 </span>)}
                 <span className="calendar-badges"><small className="phase-badge">{phaseFor(event, day.iso)}</small>
                   {conflicts.some(conflict => (conflict.left.eventId === event.id || conflict.right.eventId === event.id) && conflict.periods.some(period => period.start <= day.iso && period.end >= day.iso)) && <small className="pending-badge"><AlertTriangle size={10} /> Posible cruce</small>}
-                  {event.assignments.some(a => roles.some(role => a.crew[role].some(person => person.name.trim() && operatorWorksOn(person, day.iso) && !person.confirmed))) && <small className="pending-badge">Operadores por confirmar</small>}
+                  {event.assignments.some(a => roles.some(role => a.crew[role].some(person => person.name.trim() && operatorWorksOn(person, day.iso, a) && !person.confirmed))) && <small className="pending-badge">Operadores por confirmar</small>}
                 </span>
               </button><input type="color" className="calendar-event-color" title={`Cambiar color · ${event.eventName}`} aria-label={`Color del evento · ${event.orderNumber} · ${day.iso}`} value={event.color} disabled={saving || documentBusy} onChange={e => editing?.id === event.id && editing.mode === "form" ? changeDraft({ color: e.target.value }) : changeSheet(event, draft => ({ ...draft, color: e.target.value }))} />
               </div>)}
@@ -849,9 +857,9 @@ ${calendario}
                 <td>{sheetField(event, "setupDate", "Armado", "date")}</td>
                 <td>{sheetField(event, "startDate", "Inicio", "date")}</td>
                 <td>{sheetField(event, "endDate", "Fin", "date")}</td>
-                <td>{assignmentField(event, assignment, "salon", "Sala")}</td>
+                <td>{assignmentField(event, assignment, "salon", "Sala")}<RoomDays event={event} room={assignment} onChange={dates => changeSheetAssignment(event, assignment.id, { dates })} /></td>
                 <td>{assignmentField(event, assignment, "serviceType", "Servicio")}</td>
-                {roles.map(role => <td key={role}><CrewEditor compact key={role} event={event} role={role} people={assignment.crew[role]} onFocus={() => { beginEdit(event, "sheet"); }} onChange={people => changeSheetAssignment(event, assignment.id, { crew: { ...assignment.crew, [role]: people } })} /></td>)}
+                {roles.map(role => <td key={role}><CrewEditor compact key={role} event={event} room={assignment} role={role} people={assignment.crew[role]} onFocus={() => { beginEdit(event, "sheet"); }} onChange={people => changeSheetAssignment(event, assignment.id, { crew: { ...assignment.crew, [role]: people } })} /></td>)}
                 <td><select aria-label={`Estado · ${event.orderNumber}`} value={assignment.status} onChange={e => changeSheetAssignment(event, assignment.id, { status: e.target.value })}>{statuses.map(s => <option key={s}>{s}</option>)}</select></td>
                 <td><select aria-label={`Día · ${event.orderNumber}`} value={event.phase} onChange={e => changeSheet(event, data => ({ ...data, phase: e.target.value as EventDraft["phase"] }))}>{phases.map(p => <option key={p}>{p}</option>)}</select></td>
                 <td><div className="row-actions">

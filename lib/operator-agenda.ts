@@ -18,7 +18,7 @@ export function operatorAgenda(events: EventRecord[], name: string, from: string
   if (!key || (from && to && from > to)) return [];
   return events.flatMap(event => eventDates(event).filter(day => (!from || day >= from) && (!to || day <= to)).flatMap(date => {
     const rooms = event.assignments.flatMap(room => {
-      const assigned = roles.filter(role => room.crew[role].some(person => normalizeSearchText(canonicalOperatorName(person.name)) === key && operatorWorksOn(person, date)));
+      const assigned = roles.filter(role => room.crew[role].some(person => normalizeSearchText(canonicalOperatorName(person.name)) === key && operatorWorksOn(person, date, room)));
       return assigned.length ? [{ name: room.salon || "Sin sala", roles: assigned.map(role => roleLabels[role]) }] : [];
     });
     return rooms.length ? [{ eventId: event.id, order: event.orderNumber, eventName: event.eventName, location: event.location, date, rooms }] : [];

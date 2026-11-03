@@ -1,4 +1,4 @@
-import type { EventDraft, EventRecord } from "./agenda";
+import { operatorWorksOn, type EventDraft, type EventRecord } from "./agenda.ts";
 
 export function normalizeSearchText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-AR").trim().replace(/\s+/g, " ");
@@ -104,8 +104,8 @@ export function findCrewConflicts(events: EventRecord[]): CrewConflict[] {
         const name = canonicalOperatorName(person.name);
         const key = normalizeSearchText(name);
         if (!key) continue;
-        const periods = person.dates === undefined ? active : person.dates
-          .filter(day => active.some(period => period.start <= day && day <= period.end))
+        const periods = person.dates === undefined && room.dates === undefined ? active : (room.dates ?? person.dates ?? [])
+          .filter(day => active.some(period => period.start <= day && day <= period.end) && operatorWorksOn(person, day, room))
           .map(day => ({ start: day, end: day }));
         if (!periods.length) continue;
         const current = roomPeople.get(key);

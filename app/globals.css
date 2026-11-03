@@ -478,6 +478,8 @@ th.pinned { z-index: 4; }
 .operator-days summary svg { flex-shrink: 0; }
 .operator-days.custom-days summary { opacity: 1; font-weight: 600; }
 .operator-days-options { display: grid; gap: 6px; padding: 8px 0; max-height: 240px; overflow-y: auto; }
+.room-days { margin: 12px 0; }
+.sheet-panel .room-days { margin: 6px 0 0; }
 .operator-days-options label { display: flex; flex-direction: row; align-items: flex-start; gap: 7px; font-size: 12px; font-weight: 400; min-width: 0; cursor: pointer; }
 .operator-days-options input[type="checkbox"] { flex: 0 0 15px; width: 15px; height: 15px; min-height: 0; margin: 2px 0 0; }
 .operator-days-options span { min-width: 0; overflow-wrap: anywhere; }

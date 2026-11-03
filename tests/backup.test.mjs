@@ -6,6 +6,7 @@ import { createBackup, planRestore, readBackup, restoreBackup, validateBackupMan
 
 const event = normalizeEvent({ ...newDraft(), id: 7, orderNumber: "0007", eventName: "Congreso", location: "CEC", setupDate: "2026-11-01", startDate: "2026-11-02", endDate: "2026-11-03" });
 event.assignments[0].crew.cameras = [{ id: "person", name: "Cami", confirmed: true, dates: ["2026-11-02"] }];
+event.assignments[0].dates = ["2026-11-01", "2026-11-02"];
 event.mealDates = ["2026-11-01", "2026-11-03"];
 event.mealSheetLoaded = true;
 const workspace = { equipment: [{ id: "cam", roomId: event.assignments[0].id, roomName: "A", name: "Camara", area: "CCTV", category: "Camaras", qty: 2 }], packages: [{ id: "case", name: "Bulto 1", items: [{ equipmentId: "cam", qty: 2 }] }] };
