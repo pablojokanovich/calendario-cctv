@@ -2,7 +2,7 @@ export type Holiday = { date: string; name: string; nonWorking: boolean; interna
 
 export function withAgendaHolidays(holidays: Holiday[], year: number): Holiday[] {
   const dates = new Map(holidays.filter(holiday => holiday.date.startsWith(`${year}-`)).map(holiday => [holiday.date, holiday]));
-  if (year === 2026) dates.set("2026-11-11", { date: "2026-11-11", name: "Visita del Papa", nonWorking: false, internal: true });
+  if (year === 2026) dates.set("2026-11-10", { date: "2026-11-10", name: "Visita del Papa", nonWorking: false, internal: true });
   return [...dates.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
