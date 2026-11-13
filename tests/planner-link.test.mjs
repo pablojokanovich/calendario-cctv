@@ -10,7 +10,7 @@ test("planner link opens the original site with event data in a fragment, not a 
   const original = structuredClone(event);
   const url = new URL(eventPlannerLink(event));
   assert.equal(url.origin, "https://planillascctv.vercel.app");
-  assert.equal(url.pathname, "/");
+  assert.equal(url.pathname, "/planillero.html");
   assert.equal(url.search, "");
   const payload = JSON.parse(new URLSearchParams(url.hash.slice(1)).get("agenda"));
   assert.equal(payload.source, "agenda-cctv");

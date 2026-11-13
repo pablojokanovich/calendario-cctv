@@ -109,7 +109,7 @@ export function eventPlannerLink(event: EventDraft & { id?: number | null }): st
     },
     salas: event.assignments.map((room, index) => room.salon.trim() || `Sala ${index + 1}`),
   };
-  const url = new URL("https://planillascctv.vercel.app/");
+  const url = new URL("https://planillascctv.vercel.app/planillero.html");
   url.hash = new URLSearchParams({ agenda: JSON.stringify(payload) }).toString();
   return url.toString();
 }
