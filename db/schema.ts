@@ -18,6 +18,15 @@ export const events = pgTable("events", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const calendarNotes = pgTable("calendar_notes", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  start: text("start_date").notNull(),
+  end: text("end_date").notNull(),
+  category: text("category").notNull(),
+  deleted: boolean("deleted").notNull().default(false),
+});
+
 export const serviceOrders = pgTable("event_service_orders", {
   eventId: integer("event_id").primaryKey().references(() => events.id, { onDelete: "cascade" }),
   name: text("name").notNull(),

@@ -10,7 +10,7 @@ import { OperatorAgenda } from "./OperatorAgenda";
 import { BackupPanel } from "./BackupPanel";
 import { EventPersonnelExport } from "./EventPersonnelExport";
 import { calendarWeeks } from "../lib/calendar-layout";
-import { calendarNoteForDay } from "../lib/calendar-notes";
+import { noteCategories, noteCoversDay, parseCalendarNote, type CalendarNote, type CalendarNoteDraft } from "../lib/calendar-notes";
 import { canonicalServiceName, serviceOptions } from "../lib/services";
 import { canonicalOperatorName, calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { colors, crewSummary, eventPlannerLink, eventDates, assignmentDates, assignmentWorksOn, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
@@ -152,9 +152,47 @@ function darkColor(hex: string) {
   });
   return r * 0.2126 + g * 0.7152 + b * 0.0722 < 0.179;
 }
-function CalendarNote({ day }: { day: string }) {
-  const note = calendarNoteForDay(day);
-  return note ? <div className="calendar-vacation"><span aria-hidden="true"><CalendarDays size={12} /></span>{note}</div> : null;
+function NoteEditor({ note, initialDate, onClose, onSaved }: {
+  note: CalendarNote | null; initialDate: string; onClose: () => void;
+  onSaved: (note: CalendarNote | null, removedId?: string) => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [draft, setDraft] = useState<CalendarNoteDraft>(() => note ?? { title: "", start: initialDate, end: initialDate, category: "General" });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => { dialog.current?.showModal(); }, []);
+
+  async function submit(remove = false) {
+    const values = parseCalendarNote(draft);
+    if (!remove && !values) { setError("Completá el título y revisá las fechas."); return; }
+    if (remove && !window.confirm("¿Eliminar esta nota del calendario?")) return;
+    setBusy(true);
+    setError("");
+    try {
+      const data = await request("/api/calendar-notes" + (note ? "?id=" + encodeURIComponent(note.id) : ""), {
+        method: remove ? "DELETE" : note ? "PUT" : "POST",
+        ...(remove ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) }),
+      });
+      if (!remove && !data.note) throw new Error("No se pudo confirmar el guardado.");
+      onSaved(remove ? null : data.note!, remove ? note?.id : undefined);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "No se pudo guardar la nota.");
+      setBusy(false);
+    }
+  }
+  return <dialog ref={dialog} className="note-dialog" aria-labelledby="note-title" onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
+    <form onSubmit={event => { event.preventDefault(); void submit(); }}>
+      <header className="backup-heading"><h2 id="note-title">{note ? "Editar nota" : "Agregar nota"}</h2><IconButton label="Cerrar nota" disabled={busy} onClick={onClose}><X size={18} /></IconButton></header>
+      <fieldset className="note-fields" disabled={busy}>
+        <label className="note-wide">Título<input required maxLength={120} value={draft.title} onChange={event => setDraft({ ...draft, title: event.target.value })} /></label>
+        <label>Desde<input type="date" required value={draft.start} onChange={event => { const start = event.target.value; setDraft({ ...draft, start, end: start > draft.end ? start : draft.end }); }} /></label>
+        <label>Hasta<input type="date" required min={draft.start} value={draft.end} onChange={event => setDraft({ ...draft, end: event.target.value })} /></label>
+        <label className="note-wide">Categoría<select value={draft.category} onChange={event => setDraft({ ...draft, category: event.target.value as CalendarNoteDraft["category"] })}>{noteCategories.map(category => <option key={category}>{category}</option>)}</select></label>
+      </fieldset>
+      {error && <p role="alert" className="error-message">{error}</p>}
+      <div className="edit-actions">{note && <IconButton label="Eliminar nota" disabled={busy} onClick={() => void submit(true)}><Trash2 size={17} /></IconButton>}<button type="submit" className="primary" disabled={busy}><Save size={17} />{busy ? "Guardando..." : "Guardar nota"}</button></div>
+    </form>
+  </dialog>;
 }
 
 function phaseFor(event: EventDraft, day: string) {
@@ -234,7 +272,7 @@ function readLocal(): EventRecord[] | null {
 }
 async function request(path: string, options?: RequestInit) {
   const response = await fetch(path, options);
-  const data = await response.json().catch(() => null) as { events?: unknown[]; event?: EventRecord; error?: string } | null;
+  const data = await response.json().catch(() => null) as { events?: unknown[]; event?: EventRecord; notes?: CalendarNote[]; note?: CalendarNote; error?: string } | null;
   if (!response.ok || !data) throw new Error(data?.error || "No se pudo conectar con la agenda. Intentá nuevamente.");
   return data;
 }
@@ -250,6 +288,10 @@ function excelStyleId(color: string) {
 
 export default function AgendaApp() {
   const [events, setEvents] = useState<EventRecord[]>([]);
+  const [notes, setNotes] = useState<CalendarNote[]>([]);
+  const [noteEditor, setNoteEditor] = useState<{ note: CalendarNote | null; date: string } | null>(null);
+  const [notesUnavailable, setNotesUnavailable] = useState(false);
+  const [notesLoading, setNotesLoading] = useState(true);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [view, setView] = useState<"calendar" | "sheet" | "statistics" | "individual">("calendar");
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -325,6 +367,14 @@ export default function AgendaApp() {
   }
 
   useEffect(() => { void loadEvents(); }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    request("/api/calendar-notes", { signal: controller.signal }).then(data => {
+      if (!controller.signal.aborted && Array.isArray(data.notes)) setNotes(data.notes);
+    }).catch(() => { if (!controller.signal.aborted) setNotesUnavailable(true); })
+      .finally(() => { if (!controller.signal.aborted) setNotesLoading(false); });
+    return () => controller.abort();
+  }, []);
   useEffect(() => {
     const calendar = calendarRef.current;
     if (!calendar || view !== "calendar" || search.trim() || editing || loading) return;
@@ -699,6 +749,15 @@ ${calendario}
   }
 
   return <main className={`app-shell${view === "calendar" && !search.trim() ? " calendar-view" : ""}${editing?.mode === "form" ? " has-editor" : ""}`}>
+    {noteEditor && <NoteEditor note={noteEditor.note} initialDate={noteEditor.date} onClose={() => setNoteEditor(null)} onSaved={(note, removedId) => {
+      setNotes(current => [...current.filter(item => item.id !== (note?.id ?? removedId)), ...(note ? [note] : [])]);
+      setNoteEditor(null);
+      if (note && !noteEditor.note) {
+        const date = parseDate(note.start);
+        setSearch("");
+        jumpToMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+      }
+    }} />}
     <datalist id="operators">{operatorOptions.map(name => <option key={name} value={name} />)}</datalist>
     <datalist id="services">{serviceOptions.map(name => <option key={name} value={name} />)}</datalist>
     <header className="toolbar">
@@ -713,6 +772,7 @@ ${calendario}
         <IconButton label={theme === "light" ? "Activar modo oscuro" : "Activar modo claro"} onClick={toggleTheme}>{theme === "light" ? <Moon size={19} /> : <Sun size={19} />}</IconButton>
         <IconButton label="Exportar Excel con planilla y calendario" onClick={exportExcel} disabled={loading}><Download size={19} /></IconButton>
         <IconButton label="Respaldo completo y restauración" onClick={() => setBackupOpen(true)} disabled={loading || saving || documentBusy || localMode || !!editing?.dirty}><Archive size={19} /></IconButton>
+        {view === "calendar" && <button type="button" disabled={notesLoading || saving || documentBusy || editing?.mode === "form"} onClick={() => setNoteEditor({ note: null, date: todayIso.startsWith(dateIso(month).slice(0, 7)) ? todayIso : dateIso(month) })}><Plus size={16} />Agregar nota</button>}
         <button type="button" className="primary" disabled={loading || saving || documentBusy} onClick={() => beginEdit(null, "form")}><Plus size={18} />Nuevo evento</button>
       </div>
     </header>
@@ -735,6 +795,7 @@ ${calendario}
     </div>}
     {conflicts.length > 0 && <details className="conflict-panel"><summary><AlertTriangle size={17} />{conflicts.length} {conflicts.length === 1 ? "posible cruce de operadores" : "posibles cruces de operadores"}</summary><p>Coincidencias de fecha, incluyendo armado. Horarios no verificados.</p>{conflictList(conflicts)}</details>}
     {error && <div className="error-message" role="alert">{error}</div>}
+    {view === "calendar" && notesUnavailable && <p className="holiday-status" role="status">No se pudieron cargar las notas del calendario.</p>}
     {view === "calendar" && holidayError && <div className="holiday-status" role="status"><span>{holidayError}</span><IconButton label="Reintentar carga de feriados" onClick={() => setHolidayRetry(current => current + 1)}><RefreshCw size={14} /></IconButton></div>}
 
     {editing?.mode === "sheet" && editing.dirty && <div className="edit-bar">
@@ -823,7 +884,7 @@ ${calendario}
           <div className="calendar-grid">{calendarWeeks(daysForMonth(value), calendarDisplayEvents, dateIso(value)).map(week => <div className="calendar-week" key={week.days[0].iso} style={{ gridTemplateRows: `auto ${week.laneCount ? `repeat(${week.laneCount}, auto) ` : ""}minmax(16px, 1fr)` }}>{week.days.map((day, column) => day.iso < dateIso(value) ? <div key={day.iso} className="day-cell calendar-empty" aria-hidden="true" style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} /> : <article key={day.iso} data-calendar-date={day.iso} style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
             <div className="calendar-day-header">
             <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time></div>
-            <CalendarNote day={day.iso} />
+            {notes.filter(note => noteCoversDay(note, day.iso)).map(note => <button type="button" key={note.id} className="calendar-vacation" title={note.category} aria-label={`Editar nota: ${note.title}`} disabled={editing?.mode === "form" || saving || documentBusy} onClick={() => setNoteEditor({ note, date: day.iso })}><CalendarDays size={12} aria-hidden="true" /><span>{note.title}</span></button>)}
             {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].internal ? "Feriado interno" : holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
             </div>
             {week.entries.filter(entry => entry.columns.includes(column)).map(({ event, lane, columns }) =>
