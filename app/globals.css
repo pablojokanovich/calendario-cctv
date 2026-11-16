@@ -208,6 +208,8 @@ svg { flex-shrink: 0; }
 .location-input, .location-text, .calendar-location, .overview-location { text-transform: uppercase; }
 .holiday-label { display: flex; flex-direction: column; gap: 3px; border-left: 2px solid var(--accent); padding: 4px 6px; margin-bottom: 8px; color: var(--accent); font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
 .holiday-label b { font-size: 10px; }
+.calendar-vacation { display: flex; align-items: flex-start; gap: 4px; margin-bottom: 8px; padding: 4px 5px; border: 1px dashed currentColor; border-radius: 4px; background: #e4f4ee; color: #145b4b; font-size: 10px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+:root[data-theme="dark"] .calendar-vacation { background: #163a31; color: #a1ead4; }
 .non-working .holiday-label { border-color: #a16a13; color: #a16a13; }
 :root[data-theme="dark"] .non-working .holiday-label { border-color: #eac375; color: #eac375; }
 .holiday-status { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; color: var(--ink-soft); font-size: 12px; }

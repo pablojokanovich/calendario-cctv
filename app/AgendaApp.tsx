@@ -10,6 +10,7 @@ import { OperatorAgenda } from "./OperatorAgenda";
 import { BackupPanel } from "./BackupPanel";
 import { EventPersonnelExport } from "./EventPersonnelExport";
 import { calendarWeeks } from "../lib/calendar-layout";
+import { calendarNoteForDay } from "../lib/calendar-notes";
 import { canonicalServiceName, serviceOptions } from "../lib/services";
 import { canonicalOperatorName, calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { colors, crewSummary, eventPlannerLink, eventDates, assignmentDates, assignmentWorksOn, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
@@ -151,6 +152,11 @@ function darkColor(hex: string) {
   });
   return r * 0.2126 + g * 0.7152 + b * 0.0722 < 0.179;
 }
+function CalendarNote({ day }: { day: string }) {
+  const note = calendarNoteForDay(day);
+  return note ? <div className="calendar-vacation"><span aria-hidden="true"><CalendarDays size={12} /></span>{note}</div> : null;
+}
+
 function phaseFor(event: EventDraft, day: string) {
   const setup = event.setupDate === day;
   const live = day >= event.startDate && day <= event.endDate;
@@ -817,6 +823,7 @@ ${calendario}
           <div className="calendar-grid">{calendarWeeks(daysForMonth(value), calendarDisplayEvents, dateIso(value)).map(week => <div className="calendar-week" key={week.days[0].iso} style={{ gridTemplateRows: `auto ${week.laneCount ? `repeat(${week.laneCount}, auto) ` : ""}minmax(16px, 1fr)` }}>{week.days.map((day, column) => day.iso < dateIso(value) ? <div key={day.iso} className="day-cell calendar-empty" aria-hidden="true" style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} /> : <article key={day.iso} data-calendar-date={day.iso} style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
             <div className="calendar-day-header">
             <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time></div>
+            <CalendarNote day={day.iso} />
             {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].internal ? "Feriado interno" : holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
             </div>
             {week.entries.filter(entry => entry.columns.includes(column)).map(({ event, lane, columns }) =>
