@@ -14,6 +14,7 @@ test("Pablo's vacation includes both endpoints and crosses into the new year", (
 test("note validation handles one-day notes, invalid ranges and categories", () => {
   const note = { title: " Aviso ", start: "2027-01-15", end: "2027-01-15", category: "Aviso" };
   assert.deepEqual(parseCalendarNote(note), { ...note, title: "Aviso" });
+  assert.equal(parseCalendarNote({ ...note, category: "Tarea a realizar" }).category, "Tarea a realizar");
   for (const patch of [{ title: " " }, { end: "2027-01-14" }, { end: "2027-02-30" }, { category: "Evento" }]) {
     assert.equal(parseCalendarNote({ ...note, ...patch }), null);
   }

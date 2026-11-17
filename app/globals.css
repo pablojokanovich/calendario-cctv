@@ -208,9 +208,17 @@ svg { flex-shrink: 0; }
 .location-input, .location-text, .calendar-location, .overview-location { text-transform: uppercase; }
 .holiday-label { display: flex; flex-direction: column; gap: 3px; border-left: 2px solid var(--accent); padding: 4px 6px; margin-bottom: 8px; color: var(--accent); font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
 .holiday-label b { font-size: 10px; }
-.calendar-vacation { display: flex; align-items: flex-start; justify-content: flex-start; gap: 4px; width: 100%; min-height: 0; margin-bottom: 8px; padding: 4px 5px; border: 1px dashed currentColor; border-radius: 4px; background: #e4f4ee; color: #145b4b; font-size: 10px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; text-align: left; }
-:root[data-theme="dark"] .calendar-vacation { background: #163a31; color: #a1ead4; }
-.calendar-vacation span { min-width: 0; }
+.calendar-note { display: flex; align-items: flex-start; justify-content: flex-start; gap: 4px; width: 100%; min-height: 0; margin-bottom: 8px; padding: 4px 5px; border: 1px dashed currentColor; border-radius: 4px; background: var(--panel-muted); color: var(--foreground); font-size: 10px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; text-align: left; }
+.calendar-note span { min-width: 0; }
+.calendar-note small { display: block; font-size: inherit; font-weight: 400; }
+.calendar-note[data-category="Vacaciones"] { background: #e4f4ee; color: #145b4b; }
+.calendar-note[data-category="Aviso"] { background: #e5efff; color: #204c88; }
+.calendar-note[data-category="Recordatorio"] { background: #f0e9fa; color: #593378; }
+.calendar-note[data-category="Tarea a realizar"] { background: #ffeed7; color: #783f09; }
+:root[data-theme="dark"] .calendar-note[data-category="Vacaciones"] { background: #163a31; color: #a1ead4; }
+:root[data-theme="dark"] .calendar-note[data-category="Aviso"] { background: #1c3454; color: #b6d2ff; }
+:root[data-theme="dark"] .calendar-note[data-category="Recordatorio"] { background: #382748; color: #e1c1ff; }
+:root[data-theme="dark"] .calendar-note[data-category="Tarea a realizar"] { background: #472f19; color: #ffcf99; }
 .note-dialog { margin: auto; width: min(420px, calc(100% - 24px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 18px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--foreground); }
 .note-dialog::backdrop { background: #0008; }
 .note-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }

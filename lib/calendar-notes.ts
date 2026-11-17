@@ -1,4 +1,4 @@
-export const noteCategories = ["General", "Vacaciones", "Aviso", "Recordatorio"] as const;
+export const noteCategories = ["General", "Vacaciones", "Aviso", "Recordatorio", "Tarea a realizar"] as const;
 export type NoteCategory = (typeof noteCategories)[number];
 export type CalendarNoteDraft = { title: string; start: string; end: string; category: NoteCategory };
 export type CalendarNote = CalendarNoteDraft & { id: string };
