@@ -317,7 +317,7 @@ export default function AgendaApp() {
   const formRef = useRef<HTMLFormElement>(null);
   const focusNextForm = useRef(false);
   const calendarRef = useRef<HTMLElement>(null);
-  const viewToolbarRef = useRef<HTMLDivElement>(null);
+  const navigationRef = useRef<HTMLDivElement>(null);
   const eventOverviewRef = useRef<HTMLElement>(null);
   const visibleMonthAnchor = useRef<{ element: Element; top: number } | null>(null);
   const calendarJump = useRef<"month" | "today" | null>("today");
@@ -342,14 +342,24 @@ export default function AgendaApp() {
       const cell = day.getBoundingClientRect();
       if (cell.left < bounds.left) panel.scrollLeft += cell.left - bounds.left - 2;
       else if (cell.right > bounds.right) panel.scrollLeft += cell.right - bounds.right + 2;
-      const headerHeight = (viewToolbarRef.current?.offsetHeight ?? 0) + (panel.querySelector<HTMLElement>(".weekday-row")?.offsetHeight ?? 0);
+      const headerHeight = (navigationRef.current?.offsetHeight ?? 0) + (panel.querySelector<HTMLElement>(".weekday-row")?.offsetHeight ?? 0);
       calendarJump.current = null;
       window.scrollTo({ top: Math.max(0, window.scrollY + cell.top - headerHeight - 12), behavior: "instant" });
     } else {
       calendarJump.current = null;
-      window.scrollTo({ top: Math.max(0, window.scrollY + calendar.getBoundingClientRect().top - 90), behavior: "instant" });
+      window.scrollTo({ top: Math.max(0, window.scrollY + calendar.getBoundingClientRect().top - (navigationRef.current?.offsetHeight ?? 0) - 12), behavior: "instant" });
     }
   }, [loadedMonths, loading, notesLoading, todayIso, view, search]);
+
+  useLayoutEffect(() => {
+    const navigation = navigationRef.current;
+    if (!navigation) return;
+    const sync = () => navigation.parentElement?.style.setProperty("--navigation-height", `${navigation.offsetHeight}px`);
+    sync();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(sync) : null;
+    observer?.observe(navigation);
+    return () => observer?.disconnect();
+  }, []);
 
   useLayoutEffect(() => {
     if (eventOverviewRef.current) eventOverviewRef.current.scrollTop = 0;
@@ -401,7 +411,7 @@ export default function AgendaApp() {
     function updateTimeline() {
       frame = 0;
       const sections = Array.from(calendar!.querySelectorAll<HTMLElement>("[data-calendar-month]"));
-      const top = viewToolbarRef.current?.getBoundingClientRect().bottom ?? 0;
+      const top = navigationRef.current?.getBoundingClientRect().bottom ?? 0;
       const visible = sections.find(section => section.getBoundingClientRect().bottom > top + 1);
       if (visible) {
         const date = parseDate(visible.dataset.calendarMonth!);
@@ -431,14 +441,13 @@ export default function AgendaApp() {
   }, [view, search, editing, loading, loadedMonths, month]);
   useEffect(() => {
     const calendar = calendarRef.current;
-    const toolbar = viewToolbarRef.current;
+    const toolbar = navigationRef.current;
     if (view !== "calendar" || !calendar || !toolbar) return;
     let frame = 0;
     // Keep headers inside their horizontal scroller while following page scroll.
     function updateWeekdays() {
       frame = 0;
       const top = Math.max(0, toolbar!.getBoundingClientRect().bottom);
-      calendar!.closest<HTMLElement>(".calendar-layout")?.style.setProperty("--calendar-toolbar-height", `${toolbar!.offsetHeight}px`);
       for (const row of calendar!.querySelectorAll<HTMLElement>(".weekday-row")) {
         const inner = row.parentElement!.getBoundingClientRect();
         const offset = Math.max(0, Math.min(top - inner.top, inner.height - row.offsetHeight));
@@ -775,6 +784,7 @@ ${calendario}
     }} />}
     <datalist id="operators">{operatorOptions.map(name => <option key={name} value={name} />)}</datalist>
     <datalist id="services">{serviceOptions.map(name => <option key={name} value={name} />)}</datalist>
+    <div className="agenda-navigation" ref={navigationRef}>
     <header className="toolbar">
       <div className="brand"><img className="brand-logo" src="/congress-rental-logo.jpg" alt="Congress Rental" width={44} height={44} /><div><p>Congress Rental · CCTV</p><h1>Agenda operativa</h1></div></div>
       <div className="toolbar-actions">
@@ -791,7 +801,7 @@ ${calendario}
         <button type="button" className="primary" disabled={loading || saving || documentBusy} onClick={() => beginEdit(null, "form")}><Plus size={18} />Nuevo evento</button>
       </div>
     </header>
-    <div className="view-toolbar" ref={viewToolbarRef}>
+    <div className="view-toolbar">
       {view === "calendar" ? <div className="month-navigation">
         <IconButton label="Mes anterior" onClick={() => jumpToMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={20} /></IconButton>
         <h2 aria-live="polite" aria-atomic="true">{monthLabel(month)}</h2>
@@ -799,6 +809,7 @@ ${calendario}
         <button type="button" className="today-button" onClick={() => { setSearch(""); jumpToMonth(parseDate(todayIso.slice(0, 7) + "-01"), "today"); }}>Hoy</button>
       </div> : view === "sheet" ? <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2> : <h2>{view === "individual" ? "Agenda individual" : "Estadísticas"}</h2>}
       <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || documentBusy || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
+    </div>
     </div>
     {(view === "calendar" || view === "sheet") && <div className="search-toolbar"><label className="agenda-search"><Search size={17} /><input type="search" aria-label="Buscar eventos" placeholder="Buscar evento, orden, lugar, sala u operador" value={search} onChange={event => setSearch(event.target.value)} />{search && <IconButton label="Limpiar búsqueda" onClick={() => setSearch("")}><X size={16} /></IconButton>}</label>
       {view === "calendar" && <div className="location-filter"><label><MapPin size={16} /><select aria-label="Filtrar calendario por locación" value={locationFilter} onChange={event => setLocationFilter(event.target.value)}>
