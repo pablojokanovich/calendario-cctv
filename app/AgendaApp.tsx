@@ -10,7 +10,7 @@ import { OperatorAgenda } from "./OperatorAgenda";
 import { BackupPanel } from "./BackupPanel";
 import { EventPersonnelExport } from "./EventPersonnelExport";
 import { calendarWeeks } from "../lib/calendar-layout";
-import { noteCategories, noteCoversDay, parseCalendarNote, type CalendarNote, type CalendarNoteDraft } from "../lib/calendar-notes";
+import { noteCategories, noteCategoryLabel, noteCoversDay, parseCalendarNote, type CalendarNote, type CalendarNoteDraft } from "../lib/calendar-notes";
 import { canonicalServiceName, serviceOptions } from "../lib/services";
 import { canonicalOperatorName, calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
 import { colors, crewSummary, eventPlannerLink, eventDates, assignmentDates, assignmentWorksOn, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
@@ -187,7 +187,7 @@ function NoteEditor({ note, initialDate, onClose, onSaved }: {
         <label className="note-wide">Título<input required maxLength={120} value={draft.title} onChange={event => setDraft({ ...draft, title: event.target.value })} /></label>
         <label>Desde<input type="date" required value={draft.start} onChange={event => { const start = event.target.value; setDraft({ ...draft, start, end: start > draft.end ? start : draft.end }); }} /></label>
         <label>Hasta<input type="date" required min={draft.start} value={draft.end} onChange={event => setDraft({ ...draft, end: event.target.value })} /></label>
-        <label className="note-wide">Categoría<select value={draft.category} onChange={event => setDraft({ ...draft, category: event.target.value as CalendarNoteDraft["category"] })}>{noteCategories.map(category => <option key={category}>{category}</option>)}</select></label>
+        <label className="note-wide">Categoría<select value={draft.category} onChange={event => setDraft({ ...draft, category: event.target.value as CalendarNoteDraft["category"] })}>{noteCategories.map(category => <option key={category} value={category}>{noteCategoryLabel(category)}</option>)}</select></label>
       </fieldset>
       {error && <p role="alert" className="error-message">{error}</p>}
       <div className="edit-actions">{note && <IconButton label="Eliminar nota" disabled={busy} onClick={() => void submit(true)}><Trash2 size={17} /></IconButton>}<button type="submit" className="primary" disabled={busy}><Save size={17} />{busy ? "Guardando..." : "Guardar nota"}</button></div>
@@ -884,7 +884,7 @@ ${calendario}
           <div className="calendar-grid">{calendarWeeks(daysForMonth(value), calendarDisplayEvents, dateIso(value)).map(week => <div className="calendar-week" key={week.days[0].iso} style={{ gridTemplateRows: `auto ${week.laneCount ? `repeat(${week.laneCount}, auto) ` : ""}minmax(16px, 1fr)` }}>{week.days.map((day, column) => day.iso < dateIso(value) ? <div key={day.iso} className="day-cell calendar-empty" aria-hidden="true" style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} /> : <article key={day.iso} data-calendar-date={day.iso} style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
             <div className="calendar-day-header">
             <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time></div>
-            {notes.filter(note => noteCoversDay(note, day.iso)).map(note => <button type="button" key={note.id} className="calendar-note" data-category={note.category} aria-label={`Editar nota: ${note.title} · ${note.category}`} disabled={editing?.mode === "form" || saving || documentBusy} onClick={() => setNoteEditor({ note, date: day.iso })}><CalendarDays size={12} aria-hidden="true" /><span><small>{note.category}</small>{note.title}</span></button>)}
+            {notes.filter(note => noteCoversDay(note, day.iso)).map(note => <button type="button" key={note.id} className="calendar-note" data-category={note.category} aria-label={`Editar nota: ${note.title} · ${noteCategoryLabel(note.category)}`} disabled={editing?.mode === "form" || saving || documentBusy} onClick={() => setNoteEditor({ note, date: day.iso })}><CalendarDays size={12} aria-hidden="true" /><span><small>{noteCategoryLabel(note.category)}</small>{note.title}</span></button>)}
             {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].internal ? "Feriado interno" : holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
             </div>
             {week.entries.filter(entry => entry.columns.includes(column)).map(({ event, lane, columns }) =>

@@ -1,5 +1,8 @@
 export const noteCategories = ["General", "Vacaciones", "Aviso", "Recordatorio", "Tarea a realizar"] as const;
 export type NoteCategory = (typeof noteCategories)[number];
+export function noteCategoryLabel(category: NoteCategory) {
+  return category === "Tarea a realizar" ? "Tarea por realizar" : category;
+}
 export type CalendarNoteDraft = { title: string; start: string; end: string; category: NoteCategory };
 export type CalendarNote = CalendarNoteDraft & { id: string };
 
