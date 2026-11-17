@@ -320,20 +320,36 @@ export default function AgendaApp() {
   const viewToolbarRef = useRef<HTMLDivElement>(null);
   const eventOverviewRef = useRef<HTMLElement>(null);
   const visibleMonthAnchor = useRef<{ element: Element; top: number } | null>(null);
-  const calendarJump = useRef(false);
+  const calendarJump = useRef<"month" | "today" | null>("today");
+  const todayIso = dateIso(new Date());
 
-  function jumpToMonth(date: Date) {
-    calendarJump.current = true;
+  function jumpToMonth(date: Date, target: "month" | "today" = "month") {
+    calendarJump.current = target;
     setMonth(date);
     setLoadedMonths([date]);
   }
 
   useLayoutEffect(() => {
-    if (calendarJump.current && calendarRef.current) {
-      calendarJump.current = false;
-      window.scrollTo({ top: Math.max(0, window.scrollY + calendarRef.current.getBoundingClientRect().top - 90), behavior: "instant" });
+    const calendar = calendarRef.current;
+    const jump = calendarJump.current;
+    if (!calendar || !jump) return;
+    if (jump === "today") {
+      if (loading || notesLoading) return;
+      const panel = calendar.querySelector<HTMLElement>(`[data-calendar-month="${todayIso.slice(0, 7)}-01"]`);
+      const day = panel?.querySelector<HTMLElement>(`[data-calendar-date="${todayIso}"]`);
+      if (!panel || !day) return;
+      const bounds = panel.getBoundingClientRect();
+      const cell = day.getBoundingClientRect();
+      if (cell.left < bounds.left) panel.scrollLeft += cell.left - bounds.left - 2;
+      else if (cell.right > bounds.right) panel.scrollLeft += cell.right - bounds.right + 2;
+      const headerHeight = (viewToolbarRef.current?.offsetHeight ?? 0) + (panel.querySelector<HTMLElement>(".weekday-row")?.offsetHeight ?? 0);
+      calendarJump.current = null;
+      window.scrollTo({ top: Math.max(0, window.scrollY + cell.top - headerHeight - 12), behavior: "instant" });
+    } else {
+      calendarJump.current = null;
+      window.scrollTo({ top: Math.max(0, window.scrollY + calendar.getBoundingClientRect().top - 90), behavior: "instant" });
     }
-  }, [loadedMonths]);
+  }, [loadedMonths, loading, notesLoading, todayIso, view, search]);
 
   useLayoutEffect(() => {
     if (eventOverviewRef.current) eventOverviewRef.current.scrollTop = 0;
@@ -543,7 +559,6 @@ export default function AgendaApp() {
     return () => controller.abort();
   }, [holidayYears, holidayRetry]);
 
-  const todayIso = dateIso(new Date());
   const locationOptions = useMemo(() => calendarLocationOptions(events), [events]);
   const locationEvents = useMemo(() => locationFilter ? events.filter(event => locationFilterKey(event.location) === locationFilter) : events, [events, locationFilter]);
   const calendarDisplayEvents = useMemo(() => locationEvents.map(event => editing?.id === event.id ? { ...editing.data, id: event.id } : event), [locationEvents, editing]);
@@ -781,7 +796,7 @@ ${calendario}
         <IconButton label="Mes anterior" onClick={() => jumpToMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={20} /></IconButton>
         <h2 aria-live="polite" aria-atomic="true">{monthLabel(month)}</h2>
         <IconButton label="Mes siguiente" onClick={() => jumpToMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={20} /></IconButton>
-        <button type="button" className="today-button" onClick={() => jumpToMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hoy</button>
+        <button type="button" className="today-button" onClick={() => { setSearch(""); jumpToMonth(parseDate(todayIso.slice(0, 7) + "-01"), "today"); }}>Hoy</button>
       </div> : view === "sheet" ? <h2>Planilla de eventos <span className="count">{sheetEvents.length}</span></h2> : <h2>{view === "individual" ? "Agenda individual" : "Estadísticas"}</h2>}
       <div className="sync-status"><span role="status">{saving ? "Guardando..." : message}</span><IconButton label="Actualizar agenda" disabled={loading || saving || documentBusy || !!editing?.dirty} onClick={() => void loadEvents()}><RefreshCw size={16} /></IconButton></div>
     </div>
