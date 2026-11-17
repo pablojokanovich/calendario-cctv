@@ -290,6 +290,8 @@ export default function AgendaApp() {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [notes, setNotes] = useState<CalendarNote[]>([]);
   const [noteEditor, setNoteEditor] = useState<{ note: CalendarNote | null; date: string } | null>(null);
+  const [dayActions, setDayActions] = useState<{ date: string; x: number; y: number; trigger: HTMLElement | null } | null>(null);
+  const dayActionsRef = useRef<HTMLDivElement>(null);
   const [notesUnavailable, setNotesUnavailable] = useState(false);
   const [notesLoading, setNotesLoading] = useState(true);
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -322,6 +324,14 @@ export default function AgendaApp() {
   const visibleMonthAnchor = useRef<{ element: Element; top: number } | null>(null);
   const calendarJump = useRef<"month" | "today" | null>("today");
   const todayIso = dateIso(new Date());
+
+  function openDayActions(date: string, x: number, y: number, trigger: HTMLElement | null) {
+    setDayActions({
+      date, trigger,
+      x: Math.max(8, Math.min(x, window.innerWidth - 208)),
+      y: Math.max(8, Math.min(y, window.innerHeight - 124)),
+    });
+  }
 
   function jumpToMonth(date: Date, target: "month" | "today" = "month") {
     calendarJump.current = target;
@@ -393,6 +403,29 @@ export default function AgendaApp() {
   }
 
   useEffect(() => { void loadEvents(); }, []);
+  useEffect(() => {
+    if (!dayActions) return;
+    dayActionsRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus({ preventScroll: true });
+    const close = () => setDayActions(null);
+    const outside = (event: PointerEvent) => {
+      if (!dayActionsRef.current?.contains(event.target as Node)) close();
+    };
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      close();
+      dayActions.trigger?.focus({ preventScroll: true });
+    };
+    window.addEventListener("pointerdown", outside);
+    window.addEventListener("keydown", keydown);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("pointerdown", outside);
+      window.removeEventListener("keydown", keydown);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [dayActions]);
   useEffect(() => {
     const controller = new AbortController();
     request("/api/calendar-notes", { signal: controller.signal }).then(data => {
@@ -598,7 +631,7 @@ export default function AgendaApp() {
   function canLeave() {
     return !documentBusy && !savingRef.current && (!editing?.dirty || window.confirm("Hay cambios sin guardar. ¿Querés descartarlos?"));
   }
-  function beginEdit(event: EventRecord | null, mode: Editing["mode"]) {
+  function beginEdit(event: EventRecord | null, mode: Editing["mode"], date?: string) {
     if (editing?.id === event?.id && editing?.mode === mode) return true;
     if (event && editing?.id === event.id && editing.mode === "sheet" && mode === "form") {
       if (documentBusy || savingRef.current) return false;
@@ -614,7 +647,9 @@ export default function AgendaApp() {
     setSavedNotice("");
     setFichaTab("datos");
     setCitationsMounted(false);
-    setEditing({ id: event?.id ?? null, data: event ? structuredClone(event) : newDraft(), mode, dirty: false });
+    const data = event ? structuredClone(event) : newDraft();
+    if (!event && date) Object.assign(data, { setupDate: date, startDate: date, endDate: date });
+    setEditing({ id: event?.id ?? null, data, mode, dirty: false });
     return true;
   }
   function cancelEdit() {
@@ -773,6 +808,11 @@ ${calendario}
   }
 
   return <main className={`app-shell${view === "calendar" && !search.trim() ? " calendar-view" : ""}${editing?.mode === "form" ? " has-editor" : ""}`}>
+    {dayActions && view === "calendar" && <div ref={dayActionsRef} className="day-actions-menu" role="group" aria-label={`Acciones del ${formatShort(dayActions.date)}`} style={{ left: dayActions.x, top: dayActions.y }}>
+      <strong>{formatShort(dayActions.date)}</strong>
+      <button type="button" disabled={loading || saving || documentBusy} onClick={() => { setDayActions(null); beginEdit(null, "form", dayActions.date); }}><CalendarDays size={16} />Agregar evento</button>
+      <button type="button" disabled={notesLoading || saving || documentBusy} onClick={() => { setDayActions(null); setNoteEditor({ note: null, date: dayActions.date }); }}><FileText size={16} />Agregar nota</button>
+    </div>}
     {noteEditor && <NoteEditor note={noteEditor.note} initialDate={noteEditor.date} onClose={() => setNoteEditor(null)} onSaved={(note, removedId) => {
       setNotes(current => [...current.filter(item => item.id !== (note?.id ?? removedId)), ...(note ? [note] : [])]);
       setNoteEditor(null);
@@ -907,9 +947,16 @@ ${calendario}
         <h3 className="calendar-month-title">{monthLabel(value)}</h3>
         <div className="calendar-inner">
           <div className="weekday-row">{weekdays.map((day, index) => <span key={day} className={index >= 5 ? "weekend-head" : ""}>{day}</span>)}</div>
-          <div className="calendar-grid">{calendarWeeks(daysForMonth(value), calendarDisplayEvents, dateIso(value)).map(week => <div className="calendar-week" key={week.days[0].iso} style={{ gridTemplateRows: `auto ${week.laneCount ? `repeat(${week.laneCount}, auto) ` : ""}minmax(16px, 1fr)` }}>{week.days.map((day, column) => day.iso < dateIso(value) ? <div key={day.iso} className="day-cell calendar-empty" aria-hidden="true" style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} /> : <article key={day.iso} data-calendar-date={day.iso} style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`}>
+          <div className="calendar-grid">{calendarWeeks(daysForMonth(value), calendarDisplayEvents, dateIso(value)).map(week => <div className="calendar-week" key={week.days[0].iso} style={{ gridTemplateRows: `auto ${week.laneCount ? `repeat(${week.laneCount}, auto) ` : ""}minmax(16px, 1fr)` }}>{week.days.map((day, column) => day.iso < dateIso(value) ? <div key={day.iso} className="day-cell calendar-empty" aria-hidden="true" style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} /> : <article key={day.iso} data-calendar-date={day.iso} style={{ gridColumn: column + 1, gridRow: `1 / span ${week.laneCount + 2}` }} className={`day-cell ${day.date.getDay() === 0 || day.date.getDay() === 6 ? "weekend" : ""} ${day.inMonth ? "" : "muted"} ${day.iso === todayIso ? "today" : ""} ${holidays[day.iso] ? holidays[day.iso].nonWorking ? "non-working" : "holiday" : ""}`} onContextMenu={event => {
+            if (editing?.mode === "form" || (event.target as Element).closest("input")) return;
+            event.preventDefault();
+            const trigger = event.currentTarget.querySelector<HTMLButtonElement>(".day-actions-trigger");
+            const anchor = trigger?.getBoundingClientRect();
+            const keyboard = event.clientX === 0 && event.clientY === 0;
+            openDayActions(day.iso, keyboard ? anchor?.left ?? 0 : event.clientX, keyboard ? anchor?.bottom ?? 0 : event.clientY, trigger);
+          }}>
             <div className="calendar-day-header">
-            <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time></div>
+            <div className="day-heading">{day.iso === todayIso && <span className="today-label">HOY</span>}<time dateTime={day.iso} aria-current={day.iso === todayIso ? "date" : undefined}>{day.date.getDate()}</time><button className="day-actions-trigger" type="button" title="Agregar evento o nota" aria-label={`Agregar evento o nota el ${formatShort(day.iso)}`} disabled={editing?.mode === "form"} onClick={event => { const rect = event.currentTarget.getBoundingClientRect(); openDayActions(day.iso, rect.left, rect.bottom + 4, event.currentTarget); }}><Plus size={14} /></button></div>
             {notes.filter(note => noteCoversDay(note, day.iso)).map(note => <button type="button" key={note.id} className="calendar-note" data-category={note.category} aria-label={`Editar nota: ${note.title} · ${noteCategoryLabel(note.category)}`} disabled={editing?.mode === "form" || saving || documentBusy} onClick={() => setNoteEditor({ note, date: day.iso })}><CalendarDays size={12} aria-hidden="true" /><span><small>{noteCategoryLabel(note.category)}</small>{note.title}</span></button>)}
             {holidays[day.iso] && <div className="holiday-label" title={holidays[day.iso].name}><b>{holidays[day.iso].internal ? "Feriado interno" : holidays[day.iso].nonWorking ? "No laborable" : "Feriado"}</b><span>{holidays[day.iso].name}</span></div>}
             </div>
