@@ -1,4 +1,4 @@
-import { operatorWorksOn, type EventDraft, type EventRecord } from "./agenda.ts";
+import { eventPeriods, operatorWorksOn, type EventDraft, type EventRecord } from "./agenda.ts";
 
 export function normalizeSearchText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-AR").trim().replace(/\s+/g, " ");
@@ -75,11 +75,7 @@ type Booking = { eventId: number; eventName: string; orderNumber: string; roomId
 export type CrewConflict = { operator: string; left: Booking; right: Booking; periods: { start: string; end: string }[] };
 
 function activePeriods(event: EventDraft) {
-  const periods = [{ start: event.startDate, end: event.endDate }];
-  if (event.setupDate && (event.setupDate < event.startDate || event.setupDate > event.endDate)) {
-    periods.push({ start: event.setupDate, end: event.setupDate });
-  }
-  return periods.filter(period => period.start && period.end && period.start <= period.end);
+  return eventPeriods(event).map(({ start, end }) => ({ start, end }));
 }
 
 function mergePeriods(periods: { start: string; end: string }[]) {

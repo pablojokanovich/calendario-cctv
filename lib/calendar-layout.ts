@@ -1,16 +1,16 @@
-import { assignmentWorksOn, type EventRecord } from "./agenda.ts";
+import { assignmentWorksOn, eventOccursOn, type EventRecord } from "./agenda.ts";
 
 export type CalendarDay = { date: Date; iso: string; inMonth: boolean };
 export type CalendarEntry = { event: EventRecord; lane: number; columns: number[] };
 
-// Reserve the same lane across a week's days, including gaps before the event.
+// Reserve the same lane across a week's days, including inactive room days.
 export function calendarWeeks(days: CalendarDay[], events: EventRecord[], monthStart: string) {
   const weeks: { days: CalendarDay[]; entries: CalendarEntry[]; laneCount: number }[] = [];
   let continuing = new Map<number, number>();
   for (let offset = 0; offset < days.length; offset += 7) {
     const weekDays = days.slice(offset, offset + 7);
     const candidates = events.flatMap(event => {
-      const columns = weekDays.flatMap((day, index) => day.iso >= monthStart && (day.iso === event.setupDate || (day.iso >= event.startDate && day.iso <= event.endDate)) && event.assignments.some(room => assignmentWorksOn(room, day.iso)) ? [index] : []);
+      const columns = weekDays.flatMap((day, index) => day.iso >= monthStart && eventOccursOn(event, day.iso) && event.assignments.some(room => assignmentWorksOn(room, day.iso)) ? [index] : []);
       return columns.length ? [{ event, columns }] : [];
     }).sort((a, b) => Number(continuing.has(b.event.id)) - Number(continuing.has(a.event.id)) ||
       a.columns[0] - b.columns[0] || b.columns.at(-1)! - a.columns.at(-1)! ||

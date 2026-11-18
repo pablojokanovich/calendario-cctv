@@ -26,10 +26,10 @@ test("multi-day events keep one weekly lane, without overlaps, regardless of inp
   assert.equal(week.entries.find(entry => entry.event.id === 1).lane, week.entries.find(entry => entry.event.id === 3).lane);
 });
 
-test("week boundaries retain continuing lanes and setup gaps stay empty", () => {
+test("week boundaries retain continuing lanes throughout multi-day setup", () => {
   const events = [event(1, "2026-11-02", "2026-11-06", "2026-11-10"), event(2, "", "2026-11-03", "2026-11-05"), event(3, "", "2026-11-09", "2026-11-09")];
   const weeks = calendarWeeks(days("2026-11-02", 14), events, "2026-11-01");
-  assert.deepEqual(weeks[0].entries.find(entry => entry.event.id === 1).columns, [0, 4, 5, 6]);
+  assert.deepEqual(weeks[0].entries.find(entry => entry.event.id === 1).columns, [0, 1, 2, 3, 4, 5, 6]);
   assert.equal(weeks[0].entries.find(entry => entry.event.id === 1).lane, weeks[1].entries.find(entry => entry.event.id === 1).lane);
   assert.equal(weeks[1].entries.find(entry => entry.event.id === 3).lane, 1);
 });

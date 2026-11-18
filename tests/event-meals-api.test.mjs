@@ -49,7 +49,7 @@ test("event APIs migrate legacy tables and persist daily meals and the meal-shee
     const created = await collection.POST(request("POST", draft));
     assert.equal(created.status, 201);
     const event = (await created.json()).event;
-    assert.deepEqual(event.mealDates, ["2026-11-01", "2026-11-04"]);
+    assert.deepEqual(event.mealDates, ["2026-11-01", "2026-11-02", "2026-11-04"]);
     assert.equal(event.mealSheetLoaded, true);
     assert.deepEqual(event.assignments[0].dates, ["2026-11-01", "2026-11-04"]);
     const updated = await item.PUT(request("PUT", { ...event, mealDates: ["2026-11-03"], mealSheetLoaded: false }), { params: Promise.resolve({ id: String(event.id) }) });

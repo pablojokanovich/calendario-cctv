@@ -13,7 +13,7 @@ import { calendarWeeks } from "../lib/calendar-layout";
 import { noteCategories, noteCategoryLabel, noteCoversDay, parseCalendarNote, type CalendarNote, type CalendarNoteDraft } from "../lib/calendar-notes";
 import { canonicalServiceName, serviceOptions } from "../lib/services";
 import { canonicalOperatorName, calendarLocationColor, calendarLocationOptions, locationFilterKey, eventMatchesSearch, findCrewConflicts } from "../lib/event-insights";
-import { colors, crewSummary, eventPlannerLink, eventDates, assignmentDates, assignmentWorksOn, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
+import { colors, crewSummary, eventPlannerLink, eventDates, eventPeriods, eventOccursOn, isSetupDay, assignmentDates, assignmentWorksOn, operatorDates, operatorDayLabel, operatorWorksOn, dateIso, newAssignment, newDraft, newOperator, normalizeEvent, phases, roleLabels, roles, statuses, syncCrew, validateEvent, type Assignment, type EventDraft, type EventRecord, type Operator, type Role } from "../lib/agenda";
 
 declare global {
   interface Document {
@@ -196,7 +196,7 @@ function NoteEditor({ note, initialDate, onClose, onSaved }: {
 }
 
 function phaseFor(event: EventDraft, day: string) {
-  const setup = event.setupDate === day;
+  const setup = isSetupDay(event, day);
   const live = day >= event.startDate && day <= event.endDate;
   return setup && live ? "ARMADO / EVENTO" : setup ? "ARMADO" : "EVENTO";
 }
@@ -610,10 +610,8 @@ export default function AgendaApp() {
   const editingConflicts = editing ? conflicts.filter(conflict => conflict.left.eventId === (editing.id ?? -999999) || conflict.right.eventId === (editing.id ?? -999999)) : [];
   const monthStart = dateIso(month);
   const monthEnd = dateIso(new Date(month.getFullYear(), month.getMonth() + 1, 0));
-  const calendarEvents = locationEvents.filter(event => event.endDate >= todayIso && (
-    (event.setupDate >= monthStart && event.setupDate <= monthEnd) ||
-    (event.startDate <= monthEnd && event.endDate >= monthStart)
-  )).sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate) || a.startDate.localeCompare(b.startDate) || a.orderNumber.localeCompare(b.orderNumber));
+  const calendarEvents = locationEvents.filter(event => event.endDate >= todayIso && eventPeriods(event).some(period => period.start <= monthEnd && period.end >= monthStart))
+    .sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate) || a.startDate.localeCompare(b.startDate) || a.orderNumber.localeCompare(b.orderNumber));
   const sheetEvents = events
     .filter(event => event.endDate >= todayIso || (editing?.id === event.id && editing.mode === "sheet"))
     .sort((a, b) => (a.setupDate || a.startDate).localeCompare(b.setupDate || b.startDate) || a.startDate.localeCompare(b.startDate) || a.orderNumber.localeCompare(b.orderNumber));
@@ -756,7 +754,7 @@ export default function AgendaApp() {
     }).join("")}</Table></Worksheet>`;
     const weeks = Array.from({ length: Math.ceil(monthDays.length / 7) }, (_, index) => monthDays.slice(index * 7, index * 7 + 7));
     const calendario = `<Worksheet ss:Name="Calendario"><Table>${weekdays.map(() => `<Column ss:Width="155"/>`).join("")}<Row>${weekdays.map(day => excelTextCell(day, "Header")).join("")}</Row>${weeks.map(week => `<Row ss:Height="95">${week.map(day => {
-      const dayEvents = events.filter(event => (event.setupDate === day.iso || (day.iso >= event.startDate && day.iso <= event.endDate)) && event.assignments.some(room => assignmentWorksOn(room, day.iso)));
+      const dayEvents = events.filter(event => eventOccursOn(event, day.iso) && event.assignments.some(room => assignmentWorksOn(room, day.iso)));
       const entries = dayEvents.map(event => `${event.orderNumber} - ${event.eventName}\n${event.location}\n${event.assignments.filter(room => assignmentWorksOn(room, day.iso)).map(a => [a.salon, a.serviceType].filter(Boolean).join(" - ")).join("\n")}\n${phaseFor(event, day.iso)}`).join("\n\n");
       const style = dayEvents[0] ? excelStyleId(dayEvents[0].color) : !day.inMonth ? "MutedDay" : day.date.getDay() === 0 || day.date.getDay() === 6 ? "WeekendDay" : "CalendarDay";
       return excelTextCell(`${day.date.getDate()}${entries ? `\n${entries}` : ""}`, style);

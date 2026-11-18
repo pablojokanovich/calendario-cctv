@@ -51,12 +51,12 @@ test("search matches all words across event fields, ignores accents and includes
   assert.equal(eventMatchesSearch(record, "Hilton"), false);
 });
 
-test("crosses include setup-only dates but exclude the gap before the event", () => {
+test("crosses include every setup day before the event", () => {
   const a = event(1, "2026-11-01", "2026-11-05", "2026-11-06");
-  assert.equal(findCrewConflicts([a, event(2, "", "2026-11-03", "2026-11-03")]).length, 0);
+  assert.equal(findCrewConflicts([a, event(2, "", "2026-11-03", "2026-11-03")]).length, 1);
   const conflicts = findCrewConflicts([a, event(2, "2026-11-01", "2026-11-02", "2026-11-02", " LÚCAS ")]);
   assert.equal(conflicts.length, 1);
-  assert.deepEqual(conflicts[0].periods, [{ start: "2026-11-01", end: "2026-11-01" }]);
+  assert.deepEqual(conflicts[0].periods, [{ start: "2026-11-01", end: "2026-11-02" }]);
   assert.equal(findCrewConflicts([a, event(3, "", "2026-11-06", "2026-11-07")]).length, 1);
 });
 

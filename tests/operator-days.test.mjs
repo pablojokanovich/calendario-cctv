@@ -7,13 +7,13 @@ function fixture(id = 1) {
   return normalizeEvent({ id, orderNumber: "0051", eventName: "Congreso", location: "CEC", setupDate: "2026-10-28", startDate: "2026-10-30", endDate: "2026-11-01", assignments: [{ id: "sala-a", salon: "Sala A", crew: { cameras: [{ id: "a", name: "Lucas", confirmed: true }] } }] });
 }
 
-test("general assignments include setup and all event days, without including gaps", () => {
+test("general assignments include every setup and event day", () => {
   const event = fixture();
-  const days = ["2026-10-28", "2026-10-30", "2026-10-31", "2026-11-01"];
+  const days = ["2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01"];
   assert.deepEqual(eventDates(event), days);
   assert.deepEqual(operatorDates(event, event.assignments[0].crew.cameras[0]), days);
-  assert.deepEqual(eventDates({ ...event, setupDate: event.startDate }), days.slice(1));
-  assert.deepEqual(eventDates({ ...event, setupDate: "2026-11-03" }), [...days.slice(1), "2026-11-03"]);
+  assert.deepEqual(eventDates({ ...event, setupDate: event.startDate }), days.slice(2));
+  assert.deepEqual(eventDates({ ...event, setupDate: "2026-11-03" }), [...days.slice(2), "2026-11-03"]);
   assert.deepEqual(eventDates({ ...event, setupDate: "", startDate: "2026-02-31" }), []);
 });
 
@@ -46,6 +46,8 @@ test("custom assignments do not silently expand when event dates change; general
   assert.ok(operatorDates(event, person).includes("2026-11-02"));
   event.startDate = "2026-11-01";
   person.dates = ["2026-10-30"];
+  assert.deepEqual(operatorDates(event, person), ["2026-10-30"]);
+  event.setupDate = "2026-10-31";
   assert.deepEqual(operatorDates(event, person), []);
 });
 

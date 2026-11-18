@@ -39,12 +39,33 @@ function validIsoDate(value: unknown): value is string {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
+export function eventPeriods(event: EventDraft) {
+  const periods: { start: string; end: string; setup: boolean }[] = [];
+  if (validIsoDate(event.setupDate)) {
+    const end = validIsoDate(event.startDate) && event.setupDate < event.startDate
+      ? new Date(new Date(`${event.startDate}T12:00:00Z`).getTime() - 86400000).toISOString().slice(0, 10)
+      : event.setupDate;
+    periods.push({ start: event.setupDate, end, setup: true });
+  }
+  if (validIsoDate(event.startDate) && validIsoDate(event.endDate) && event.startDate <= event.endDate) {
+    periods.push({ start: event.startDate, end: event.endDate, setup: false });
+  }
+  return periods;
+}
+
+export function eventOccursOn(event: EventDraft, day: string): boolean {
+  return eventPeriods(event).some(period => period.start <= day && day <= period.end);
+}
+
+export function isSetupDay(event: EventDraft, day: string): boolean {
+  return eventPeriods(event).some(period => period.setup && period.start <= day && day <= period.end);
+}
+
 export function eventDates(event: EventDraft): string[] {
   const dates = new Set<string>();
-  if (validIsoDate(event.setupDate)) dates.add(event.setupDate);
-  if (validIsoDate(event.startDate) && validIsoDate(event.endDate) && event.startDate <= event.endDate) {
-    const end = new Date(`${event.endDate}T12:00:00Z`).getTime();
-    for (let time = new Date(`${event.startDate}T12:00:00Z`).getTime(); time <= end; time += 86400000) {
+  for (const period of eventPeriods(event)) {
+    const end = new Date(`${period.end}T12:00:00Z`).getTime();
+    for (let time = new Date(`${period.start}T12:00:00Z`).getTime(); time <= end; time += 86400000) {
       dates.add(new Date(time).toISOString().slice(0, 10));
     }
   }
@@ -76,11 +97,12 @@ export function operatorDayLabel(event: EventDraft, person: Operator, room?: Ass
 export function eventCrewText(event: EventDraft): string {
   const line = (value: string) => value.trim().replace(/\s+/g, " ");
   const date = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? value.split("-").reverse().join("/") : "Sin definir";
+  const setup = eventPeriods(event).find(period => period.setup);
   const lines = [
     line(event.eventName) || "Evento sin nombre",
     `Orden: ${line(event.orderNumber) || "Sin definir"}`,
     `Lugar: ${line(event.location).toLocaleUpperCase("es-AR") || "Sin definir"}`,
-    `Armado: ${date(event.setupDate)}`,
+    `Armado: ${date(event.setupDate)}${setup && setup.end !== setup.start ? ` al ${date(setup.end)}` : ""}`,
     `Evento: ${date(event.startDate)}${event.endDate && event.endDate !== event.startDate ? ` al ${date(event.endDate)}` : ""}`,
   ];
   for (const [index, room] of event.assignments.entries()) {

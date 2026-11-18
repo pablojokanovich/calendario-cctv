@@ -1,4 +1,4 @@
-import { assignmentDates, operatorWorksOn, roles, type EventRecord, type Role } from "./agenda.ts";
+import { assignmentDates, isSetupDay, operatorWorksOn, roles, type EventRecord, type Role } from "./agenda.ts";
 import { canonicalOperatorName, normalizeSearchText } from "./event-insights.ts";
 
 export const personnelHeaders = ["OS", "LUGAR", "SALA", "MES", "FECHA", "ARMADO", "EVENTO", "DESARME", "PERSONAL", "PUESTO", "JORNADAS"];
@@ -46,7 +46,7 @@ export function personnelRows(event: EventRecord, dismantleOnLastDay = true): Pe
       const dates = [...new Set(group.dates)].sort();
       const monthKey = dates[0].slice(0, 7);
       return { id: `${room.id}:${key}`, order: event.orderNumber, location: event.location.toLocaleUpperCase("es-AR"), room: room.salon.toLocaleUpperCase("es-AR"), month: months[Number(monthKey.slice(5)) - 1], monthKey,
-        dates, dateLabel: personnelDateLabel(dates), setup: dates.includes(event.setupDate), event: dates.some(date => date >= event.startDate && date <= event.endDate), dismantle: dismantleOnLastDay && !!group.name && dates.includes(event.endDate),
+        dates, dateLabel: personnelDateLabel(dates), setup: dates.some(date => isSetupDay(event, date)), event: dates.some(date => date >= event.startDate && date <= event.endDate), dismantle: dismantleOnLastDay && !!group.name && dates.includes(event.endDate),
         person: group.name.toLocaleUpperCase("es-AR"), position: group.position, days: group.name ? dates.length : null };
     });
   }).sort((a, b) => a.monthKey.localeCompare(b.monthKey));

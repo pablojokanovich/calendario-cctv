@@ -992,7 +992,7 @@
     if (!days.length) return;
     days = days.map(day => {
       if (setupDate && day.date === setupDate && day.date >= startDate && day.date <= endDate) return { ...day, tipo: 'armado_evento' };
-      if (setupDate && day.date === setupDate) return { ...day, tipo: 'armado' };
+      if (setupDate && (day.date === setupDate || (day.date >= setupDate && day.date < startDate))) return { ...day, tipo: 'armado' };
       if (startDate && endDate && day.date >= startDate && day.date <= endDate) return { ...day, tipo: 'evento' };
       return day;
     });

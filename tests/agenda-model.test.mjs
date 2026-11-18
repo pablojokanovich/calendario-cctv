@@ -7,11 +7,11 @@ test("meals default to unchecked for legacy events and survive a database round 
   assert.deepEqual(legacy.mealDates, []); assert.equal(legacy.mealSheetLoaded, false);
   const draft = { ...legacy, mealDates: ["2026-11-04", "2026-11-01", "2026-11-01", "2026-11-02", "2026-11-05", "invalid"], mealSheetLoaded: true };
   const stored = toPayload(draft);
-  assert.equal(stored.mealDates, '["2026-11-01","2026-11-04"]');
+  assert.equal(stored.mealDates, '["2026-11-01","2026-11-02","2026-11-04"]');
   const restored = normalizeEvent({ ...stored, assignments: JSON.parse(stored.assignments) });
-  assert.deepEqual(restored.mealDates, ["2026-11-01", "2026-11-04"]);
+  assert.deepEqual(restored.mealDates, ["2026-11-01", "2026-11-02", "2026-11-04"]);
   assert.equal(restored.mealSheetLoaded, true);
-  assert.deepEqual(normalizeEvent({ ...draft, endDate: "2026-11-03" }).mealDates, ["2026-11-01"]);
+  assert.deepEqual(normalizeEvent({ ...draft, endDate: "2026-11-03" }).mealDates, ["2026-11-01", "2026-11-02"]);
   assert.deepEqual(normalizeEvent({ ...draft, mealDates: '{broken' }).mealDates, []);
   assert.equal(normalizeEvent({ ...draft, mealSheetLoaded: "true" }).mealSheetLoaded, false);
 });

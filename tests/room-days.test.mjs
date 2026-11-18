@@ -17,7 +17,7 @@ function fixture() {
 test("legacy and new rooms default to all days; explicit dates survive persistence without erasing operators", () => {
   const event = fixture(), room = event.assignments[0];
   assert.equal(room.dates, undefined);
-  assert.deepEqual(assignmentDates(event, room), ["2026-11-01", "2026-11-03", "2026-11-04"]);
+  assert.deepEqual(assignmentDates(event, room), ["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"]);
   room.dates = ["2026-11-04", "2026-11-01", "2026-11-01", "bad"];
   const stored = toPayload(event);
   const restored = normalizeEvent({ ...stored, assignments: JSON.parse(stored.assignments) });
@@ -27,7 +27,7 @@ test("legacy and new rooms default to all days; explicit dates survive persisten
   assert.deepEqual(operatorDates(event, room.crew.cameras[0], room), []);
   assert.equal(room.crew.cameras.length, 1);
   room.dates = undefined;
-  assert.equal(operatorDates(event, room.crew.cameras[0], room).length, 3);
+  assert.equal(operatorDates(event, room.crew.cameras[0], room).length, 4);
 });
 
 test("room days constrain agendas, services, confirmations, shared summaries and personnel jornadas", () => {

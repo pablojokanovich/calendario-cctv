@@ -16,16 +16,19 @@ test("statistics deduplicate operator events, rooms and working dates, respectin
   first.assignments.push(secondRoom);
   const result = buildStatistics([first, event(2)], { from: "", to: "" });
   assert.equal(result.eventCount, 2);
-  assert.equal(result.eventDays, 6);
+  assert.equal(result.eventDays, 8);
   assert.deepEqual(result.operators.map(p => [p.name, p.events, p.days]), [["Rodrigo", 2, 2], ["Guido Montini", 2, 1]]);
   assert.equal(result.services.length, 1);
   assert.equal(result.services[0].events, 2);
-  assert.equal(result.services[0].days, 6);
+  assert.equal(result.services[0].days, 8);
 });
 
-test("statistics clip actual work dates to the period, not gaps between setup and event", () => {
+test("statistics include intermediate setup days but retain explicit personnel dates", () => {
   const data = event(1);
-  assert.equal(buildStatistics([data], { from: "2026-10-02", to: "2026-10-02" }).eventCount, 0);
+  const setup = buildStatistics([data], { from: "2026-10-02", to: "2026-10-02" });
+  assert.equal(setup.eventCount, 1);
+  assert.equal(setup.eventDays, 1);
+  assert.deepEqual(setup.operators, []);
   const result = buildStatistics([data], { from: "2026-10-04", to: "2026-10-04" });
   assert.equal(result.eventDays, 1);
   assert.deepEqual(result.operators.map(p => p.name), ["Guido Montini"]);
@@ -70,7 +73,7 @@ test("statistics exclude internal staff aliases only from operator totals, retai
   assert.deepEqual(result.operators.map(p => p.name).sort(), ["Esteban Gomez", "Esteban Santamarina", "Pablo Daniel Nami"]);
   assert.equal(result.operators.find(p => p.name === "Esteban Santamarina").events, 1);
   assert.equal(result.eventCount, 1);
-  assert.equal(result.eventDays, 3);
+  assert.equal(result.eventDays, 4);
   assert.equal(result.locations[0].events, 1);
   assert.equal(result.services[0].events, 1);
   assert.deepEqual(data, before);
@@ -89,7 +92,7 @@ test("service statistics group categories or equivalent configurations without d
   assert.equal(categories.services.length, 1);
   assert.equal(categories.services[0].name, "PTZ + vMix");
   assert.equal(categories.services[0].events, 2);
-  assert.equal(categories.services[0].days, 6);
+  assert.equal(categories.services[0].days, 8);
   assert.deepEqual([a, b], before);
 });
 
